@@ -38,19 +38,36 @@ def startVM(i):
 #random remove implemented. Check he provider and  implement as a switch
 def removeVM(provider, j):
     #Todo  implement smart killing under removeVM
+
+    AWS_MIN_MINUTES_BEFORE_KILL = 45	#don't kill if less than 45 min of last hour is spent
+    AWS_MAX_MINUTES_BEFORE_KILL = 55	#don't kill if more than 55 min of last hour is spent
+
     if(provider == "default"):
         for  vm in listVM:
             if(vm.endTime == -1):
                 vm.endTime = j
                 print("End VM %s at %s" % (vm.id, j))
                 break
+    elif provider == "aws":
+        maxHourFraction = AWS_MIN_MINUTES_BEFORE_KILL
+        candidate = None
+        for vm in listVM:
+            hourFraction = (j - vm.initTime)%60
+            if vm.endTime == -1 and hourFraction > maxHourFraction and hourFraction < AWS_MAX_MINUTES_BEFORE_KILL:
+                maxHourFraction = hourFraction
+                candidate = vm
+        if candidate is None:
+            pass		#can't kill any machine
+        else:
+            vm.endTime = j
+            print("End VM %s at %s" % (vm.id, j))
 
 VM_PARAMETER_UNIT = 4 #size ofthe parameter in a single node
 VM_THRESHOLD_PRECENTAGE = .8 #threshold level defined by user
 VM_UPTIME = 0 #how long does it take to spin up an instance
 MIN_VM = 2
 SHIFT = 0
-PROVIDER = "default" #read as user arg
+PROVIDER = "aws" #read as user arg
 
 x_coordinates = array.array('d')
 y_coordinates =array.array('d')
@@ -58,7 +75,7 @@ digix_cordinates = array.array('d')
 digiy_cordinates = array.array('d')
 
 #Read vlaues while converting to VM_UNITS
-ifile  = open('data.csv', "rb")
+ifile  = open('rif.csv', "rb")
 reader = csv.reader(ifile)
 rownum = 0
 for row in reader:
