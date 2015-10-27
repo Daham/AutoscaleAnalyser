@@ -62,84 +62,111 @@ def removeVM(provider, j):
             vm.endTime = j
             print("End VM %s at %s" % (vm.id, j))
 
-VM_PARAMETER_UNIT = 4 #size ofthe parameter in a single node
-VM_THRESHOLD_PRECENTAGE = .8 #threshold level defined by user
-VM_UPTIME = 0 #how long does it take to spin up an instance
-MIN_VM = 2
-SHIFT = 0
-PROVIDER = "aws" #read as user arg
+def calculateAWSCost(givenTime, price_per_hour):
+    cost = 0
+    for vm in listVM:
+        if(vm.initTime < givenTime):
+            if(vm.endTime == -1 or (vm.endTime > givenTime)):
+                billing_hours = int(math.ceil(givenTime - vm.initTime)/60)
+                cost += billing_hours * price_per_hour
+                #print("cost: %s at %s and %s init %s" % (cost,givenTime,vm.endTime, vm.initTime))
+            else:
+                billing_hours = int(math.ceil(vm.endTime - vm.initTime)/60)
+                cost += billing_hours * price_per_hour
+    #print("cost: %s at %s" % (cost,givenTime))
+    return cost
 
-x_coordinates = array.array('d')
-y_coordinates =array.array('d')
-digix_cordinates = array.array('d')
-digiy_cordinates = array.array('d')
+def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_price_per_hour, ):
+    f, (plt1,plt2) = plt.subplots(1,2,sharex= True)
+    VM_PARAMETER_UNIT = VM_parameter_unit #size ofthe parameter in a single node
+    VM_THRESHOLD_PRECENTAGE = threshold_prcentage #threshold level defined by user
+    VM_UPTIME = uptime #how long does it take to spin up an instance
+    MIN_VM = min_VM
+    SHIFT = shift
+    PROVIDER = provider #read as user arg
+    VM_PRICE_PER_HOUR = vm_price_per_hour
 
-#Read vlaues while converting to VM_UNITS
-ifile  = open('rif.csv', "rb")
-reader = csv.reader(ifile)
-rownum = 0
-for row in reader:
-    if rownum == 0:
-         rownum += 1
-    else:
-        x_coordinates.append(float(row[0]))
-        y_coordinates.append(float(row[1])/(VM_PARAMETER_UNIT))
-    rownum += 1
-ifile.close()
-#print(x_coordinates)
-#print(y_coordinates)
+    x_coordinates = array.array('d')
+    y_coordinates =array.array('d')
+    digix_cordinates = array.array('d')
+    digiy_cordinates = array.array('d')
 
-# Regression
-xdata = np.array(x_coordinates)
-ydata = np.array(y_coordinates)
-popt, pcov = curve_fit(quad,xdata,ydata)
-print(popt)
+    #Read vlaues while converting to VM_UNITS
+    ifile  = open('rif.csv', "rb")
+    reader = csv.reader(ifile)
+    rownum = 0
+    for row in reader:
+        if rownum == 0:
+             rownum += 1
+        else:
+            x_coordinates.append(float(row[0]))
+            y_coordinates.append(float(row[1])/(VM_PARAMETER_UNIT))
+        rownum += 1
+    ifile.close()
+    #print(x_coordinates)
+    #print(y_coordinates)
 
-#Plot row data
-plt.plot(xdata, ydata, '*')
+    # Regression
+    xdata = np.array(x_coordinates)
+    ydata = np.array(y_coordinates)
+    popt, pcov = curve_fit(quad,xdata,ydata)
+    print(popt)
 
-#plot regression line of data
-plt.plot(xdata, quad(xdata,popt[0],popt[1],popt[2]), '-')
+    #Plot row data
+    plt1.plot(xdata, ydata, '*')
 
-#Initialize MIN_VMs
-#VM = [23,42] #Todo fill with randoms
+    #plot regression line of data
+    plt1.plot(xdata, quad(xdata,popt[0],popt[1],popt[2]), '-')
 
-for j in range(0,MIN_VM):
-    # id = randint(1,999)
-    t = randint(0,59)#take this as arg?
-    vm = VM(initTime = -t, endTime= -1)
-    listVM.append(vm)
+    #Initialize MIN_VMs
+    #VM = [23,42] #Todo fill with randoms
 
-#Plot number of VMs required
-roundup_required_old = MIN_VM
-for i in drange(min(xdata), max(xdata)-SHIFT, 0.1):
-    z = quad(i+SHIFT,popt[0],popt[1],popt[2])
-    print(z)
-    roundup_required = math.ceil(z/VM_THRESHOLD_PRECENTAGE)
-    vm_change = int(math.ceil(roundup_required- roundup_required_old))
+    for j in range(0,MIN_VM):
+        # id = randint(1,999)
+        t = randint(0,59)#take this as arg?
+        vm = VM(initTime = -t, endTime= -1)
+        listVM.append(vm)
 
-    if vm_change>= 0:
-        for k in range(0,vm_change):
-            startVM(i)
-    else:
-        for k in range(vm_change,-1):
-         removeVM(PROVIDER, i)
-    if roundup_required < MIN_VM:
-        roundup_required = MIN_VM
-    roundup_required_old = roundup_required;
-    print(roundup_required)
-    digix_cordinates.append(i)
-    digiy_cordinates.append(roundup_required)
+    #Plot number of VMs required
+    roundup_required_old = MIN_VM
+    for i in drange(min(xdata), max(xdata)-SHIFT, 0.1):
+        z = quad(i+SHIFT,popt[0],popt[1],popt[2])
+        print(z)
+        roundup_required = math.ceil(z/VM_THRESHOLD_PRECENTAGE)
+        vm_change = int(math.ceil(roundup_required- roundup_required_old))
 
-digixdata = np.array(digix_cordinates)
-digiydata = np.array(digiy_cordinates)
-plt.plot(digixdata,digiydata)
+        if vm_change>= 0:
+            for k in range(0,vm_change):
+                startVM(i)
+        else:
+            for k in range(vm_change,0):
+             removeVM(PROVIDER, i)
+        if roundup_required < MIN_VM:
+            roundup_required = MIN_VM
+        roundup_required_old = roundup_required;
+        print(roundup_required)
+        digix_cordinates.append(i)
+        digiy_cordinates.append(roundup_required)
+
+    digixdata = np.array(digix_cordinates)
+    digiydata = np.array(digiy_cordinates)
+    plt1.plot(digixdata,digiydata)
 
 
-for vm in listVM:
-    print("VM_id : %s initTime : %s endTime : %s" % (vm.id, vm.initTime, vm.endTime) )
+    for vm in listVM:
+        print("VM_id : %s initTime : %s endTime : %s" % (vm.id, vm.initTime, vm.endTime) )
 
-plt.show()
-#for i in range(0, len(x_coordinates)):
-#    print(x_coordinates[i])
+    costValues = array.array('d')
+    for k in drange(0,max(xdata), 10):
+        costValues.append(calculateAWSCost(k,VM_PRICE_PER_HOUR))
+    costydata= np.array(costValues)
+    costxdata = np.arange(0,max(xdata),10)
+
+    plt2.plot(costxdata,costydata)
+    #plt.show()
+    return plt
+    #for i in range(0, len(x_coordinates)):
+    #    print(x_coordinates[i])
+run(2,.8,0,2,0,"defualt",1).show()
+run(2,.8,0,2,0,"aws",1).show()
 
