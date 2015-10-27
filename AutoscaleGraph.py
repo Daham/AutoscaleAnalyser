@@ -1,7 +1,6 @@
 __author__ = 'bhash90'
-#Todo Take parameters in VM_PARAMETER_UNIT,VM_THRESHOLD_PRECENTAGE,PROVIDER etc as user args
-#Todo  implement smart killing under removeVM
-#Todo  implement cost for each provider by iterate through listVM
+#Todo Graphs should be in dame figur where necessary
+#Todo Name Aixs and lines
 import math
 import csv
 import array
@@ -10,8 +9,8 @@ import numpy as np;
 from scipy.optimize import curve_fit
 from random import randint
 
-def quad(x, a, b, c):
-     return a * x*x+ b*x + c
+def quad(x, a, b, c, d):
+     return a * x*x*x*x*x+ b*x*x*x*x + c*x*x*x + d
 
 def func(x, a, b, c):
     return a * np.exp(-b * x) + c
@@ -29,25 +28,28 @@ class VM:
         self.id = VM.VM_id;
        # self.timeStamp = timeStamp # may be required for azure
 
-listVM = list()
-
-def startVM(i):
+def startVM(listVM, i):
     vm = VM(initTime = i, endTime= -1)
     listVM.append(vm)
 
 #random remove implemented. Check he provider and  implement as a switch
-def removeVM(provider, j):
+def removeVM(listVM, provider, j):
     #Todo  implement smart killing under removeVM
 
-    AWS_MIN_MINUTES_BEFORE_KILL = 45	#don't kill if less than 45 min of last hour is spent
-    AWS_MAX_MINUTES_BEFORE_KILL = 55	#don't kill if more than 55 min of last hour is spent
+    AWS_MIN_MINUTES_BEFORE_KILL = 50	#don't kill if less than 45 min of last hour is spent
+    AWS_MAX_MINUTES_BEFORE_KILL = 57	#don't kill if more than 55 min of last hour is spent
 
     if(provider == "default"):
-        for  vm in listVM:
-            if(vm.endTime == -1):
-                vm.endTime = j
-                print("End VM %s at %s" % (vm.id, j))
-                break
+        candidate = None
+        for vm in listVM:
+            if vm.endTime == -1:
+                    candidate = vm
+                    break
+        if candidate is None:
+            pass
+        else:
+            vm.endTime = j
+        print("Default: End VM %s at %s" % (vm.id, j))
     elif provider == "aws":
         maxHourFraction = AWS_MIN_MINUTES_BEFORE_KILL
         candidate = None
@@ -56,27 +58,31 @@ def removeVM(provider, j):
             if vm.endTime == -1 and hourFraction > maxHourFraction and hourFraction < AWS_MAX_MINUTES_BEFORE_KILL:
                 maxHourFraction = hourFraction
                 candidate = vm
+                break
         if candidate is None:
             pass		#can't kill any machine
         else:
             vm.endTime = j
-            print("End VM %s at %s" % (vm.id, j))
+            print("AWS:End VM %s at %s" % (vm.id, j))
 
-def calculateAWSCost(givenTime, price_per_hour):
+    return listVM
+
+def calculateAWSCost(listVM, givenTime, price_per_hour):
     cost = 0
     for vm in listVM:
         if(vm.initTime < givenTime):
             if(vm.endTime == -1 or (vm.endTime > givenTime)):
-                billing_hours = int(math.ceil(givenTime - vm.initTime)/60)
+                billing_hours = int(math.ceil((givenTime - vm.initTime)/60))
                 cost += billing_hours * price_per_hour
                 #print("cost: %s at %s and %s init %s" % (cost,givenTime,vm.endTime, vm.initTime))
             else:
-                billing_hours = int(math.ceil(vm.endTime - vm.initTime)/60)
+                billing_hours = int(math.ceil((vm.endTime - vm.initTime)/60))
                 cost += billing_hours * price_per_hour
     #print("cost: %s at %s" % (cost,givenTime))
     return cost
 
 def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_price_per_hour, ):
+    listVM = list()
     f, (plt1,plt2) = plt.subplots(1,2,sharex= True)
     VM_PARAMETER_UNIT = VM_parameter_unit #size ofthe parameter in a single node
     VM_THRESHOLD_PRECENTAGE = threshold_prcentage #threshold level defined by user
@@ -110,13 +116,13 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     xdata = np.array(x_coordinates)
     ydata = np.array(y_coordinates)
     popt, pcov = curve_fit(quad,xdata,ydata)
-    print(popt)
+    #print(popt)
 
     #Plot row data
     plt1.plot(xdata, ydata, '*')
 
     #plot regression line of data
-    plt1.plot(xdata, quad(xdata,popt[0],popt[1],popt[2]), '-')
+    plt1.plot(xdata, quad(xdata,popt[0],popt[1],popt[2], popt[3]), '-')
 
     #Initialize MIN_VMs
     #VM = [23,42] #Todo fill with randoms
@@ -129,22 +135,22 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
 
     #Plot number of VMs required
     roundup_required_old = MIN_VM
-    for i in drange(min(xdata), max(xdata)-SHIFT, 0.1):
-        z = quad(i+SHIFT,popt[0],popt[1],popt[2])
-        print(z)
+    for i in drange(0, max(xdata)-SHIFT, 0.1):
+        z = quad(i+SHIFT,popt[0],popt[1],popt[2],popt[3])
+        #print(z)
         roundup_required = math.ceil(z/VM_THRESHOLD_PRECENTAGE)
         vm_change = int(math.ceil(roundup_required- roundup_required_old))
 
         if vm_change>= 0:
             for k in range(0,vm_change):
-                startVM(i)
+                startVM(listVM, i)
         else:
-            for k in range(vm_change,0):
-             removeVM(PROVIDER, i)
+            for k in range(0, -vm_change+1):
+                listVM = removeVM(listVM, PROVIDER, i)
         if roundup_required < MIN_VM:
             roundup_required = MIN_VM
         roundup_required_old = roundup_required;
-        print(roundup_required)
+        #print(roundup_required)
         digix_cordinates.append(i)
         digiy_cordinates.append(roundup_required)
 
@@ -158,7 +164,7 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
 
     costValues = array.array('d')
     for k in drange(0,max(xdata), 10):
-        costValues.append(calculateAWSCost(k,VM_PRICE_PER_HOUR))
+        costValues.append(calculateAWSCost(listVM, k,VM_PRICE_PER_HOUR))
     costydata= np.array(costValues)
     costxdata = np.arange(0,max(xdata),10)
 
@@ -167,6 +173,6 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     return plt
     #for i in range(0, len(x_coordinates)):
     #    print(x_coordinates[i])
-run(2,.8,0,2,0,"defualt",1).show()
-run(2,.8,0,2,0,"aws",1).show()
+run(4,.8,0,2,0,"default",12).show()
+run(4,.8,0,2,0,"aws",12).show()
 
