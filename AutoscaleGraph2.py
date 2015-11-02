@@ -6,7 +6,6 @@ import csv
 import array
 import matplotlib.pyplot as plt
 import numpy as np;
-from scipy.optimize import curve_fit
 from random import randint
 import EMA
 
@@ -87,9 +86,14 @@ def getVaue(line2d,x):
     idx = np.where(xvalues==xvalues[x])
     return yvalues[idx]
 
+def mse(predictions, targets):
+   print(predictions)
+   print(targets)
+   e = np.sqrt(np.mean((predictions-targets)**2))
+   print(e)
+   return e
 
-
-def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_price_per_hour, ):
+def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_price_per_hour,vm_init_data ):
     listVM = list()
     f, (plt1,plt2) = plt.subplots(1,2,sharex= True)
     VM_PARAMETER_UNIT = VM_parameter_unit #size ofthe parameter in a single node
@@ -124,9 +128,6 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     xdata = np.array(x_coordinates)
     ydata = np.array(y_coordinates)
 
-   # popt, pcov = curve_fit(quad,xdata,ydata)
-    #print(popt)
-
     #Plot row data
     plt1.plot(xdata, ydata, '*')
 
@@ -140,14 +141,16 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
 
     for j in range(0,MIN_VM):
         # id = randint(1,999)
-        t = randint(0,59)#take this as arg?
+        t = vm_init_data[j]#take this as arg?
         vm = VM(initTime = -t, endTime= -1)
         listVM.append(vm)
 
     #Plot number of VMs required
     roundup_required_old = MIN_VM
+    yvalueset= []
     for i in drange(0, max(xdata)-SHIFT, 0.1):
         z = getVaue(line2d,i)
+        yvalueset.append(z)
         #print(z)
         roundup_required = math.ceil(z/VM_THRESHOLD_PRECENTAGE)
         vm_change = int(math.ceil(roundup_required- roundup_required_old))
@@ -180,10 +183,16 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     costxdata = np.arange(0,max(xdata),10)
 
     plt2.plot(costxdata,costydata)
-    #plt.show()
-    return plt
+
+    yvalues = np.array(yvalueset)
+    e = mse(digiydata,yvalues)
+    return e, plt
     #for i in range(0, len(x_coordinates)):
     #    print(x_coordinates[i])
-run(4,.8,0,2,0,"default",12).show()
-run(4,.8,0,2,0,"aws",12).show()
+e, plt_1 = run(2,.8,0,2,0,"default",6,[20,40])
+plt_1.show()
+e, plt_2 = run(8,.8,0,2,0,"default",24,[20,40])
+plt_2.show()
+e, plt_3 = run(4,.8,0,2,0,"aws",12,[20,40])
+plt_3.show()
 
