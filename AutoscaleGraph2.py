@@ -1,3 +1,5 @@
+from distutils.command.upload import upload
+
 __author__ = 'bhash90'
 #Todo Graphs should be in dame figur where necessary
 #Todo Name Aixs and lines
@@ -148,8 +150,8 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     #Plot number of VMs required
     roundup_required_old = MIN_VM
     yvalueset= []
-    for i in drange(0, max(xdata)-SHIFT, 0.1):
-        z = getVaue(line2d,i)
+    for i in drange(uptime, max(xdata)-SHIFT + uptime , 0.1):
+        z = getVaue(line2d,i-uptime)
         yvalueset.append(z)
         #print(z)
         roundup_required = math.ceil(z/VM_THRESHOLD_PRECENTAGE)
@@ -167,6 +169,7 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
         #print(roundup_required)
         digix_cordinates.append(i)
         digiy_cordinates.append(roundup_required)
+
 
     digixdata = np.array(digix_cordinates)
     digiydata = np.array(digiy_cordinates)
@@ -189,10 +192,10 @@ def run(VM_parameter_unit, threshold_prcentage,uptime, min_VM,shift,provider,vm_
     return e, plt
     #for i in range(0, len(x_coordinates)):
     #    print(x_coordinates[i])
-e, plt_1 = run(2,.8,0,2,0,"default",6,[20,40])
+e, plt_1 = run(2,.8,10,2,0,"default",6,[20,40])
 plt_1.show()
-e, plt_2 = run(8,.8,0,2,0,"default",24,[20,40])
+e, plt_2 = run(16,.8,10,2,0,"default",24,[20,40])
 plt_2.show()
-e, plt_3 = run(4,.8,0,2,0,"aws",12,[20,40])
+e, plt_3 = run(16,.8,10,2,0,"aws",12,[20,40])
 plt_3.show()
 
