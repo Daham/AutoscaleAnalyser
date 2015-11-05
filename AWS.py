@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from random import randint
 import EMA
+from scipy.integrate import simps
+from numpy import trapz
 
 def quad(x, a, b, c, d):
     return a * x*x*x*x*x + b*x*x*x*x + c*x*x*x + d
@@ -87,7 +89,7 @@ def getValue(line2d, x):
     xvalues = line2d[0].get_xdata()
     yvalues = line2d[0].get_ydata()
     idx = np.where(xvalues == xvalues[x])
-    return yvalues[idx]
+    return yvalues[idx][0]
 
 def mse(predictions, targets):
     #print(predictions)
@@ -168,7 +170,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
 
     digixdata = np.array(digix_cordinates)
     digiydata = np.array(digiy_cordinates)
-    plt1.plot(digixdata, digiydata)		#requirement
+    lineAllocate = plt1.plot(digixdata, digiydata)		#requirement
     plt1.plot(digixdata, np.array(digiy_coord_actual))	#actual
 
     for vm in listVM:
@@ -185,9 +187,44 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
 
     yvalues = np.array(yvalueset)
     e = mse(digiydata, yvalues)
+
+    start = max(min(line2d[0].get_xdata()), min(lineAllocate[0].get_xdata()))
+    end   = min(max(line2d[0].get_xdata()), max(lineAllocate[0].get_xdata()));
+    calculateViolation(predictLine=line2d, allocateline=lineAllocate, startTime= start , endTime= end)
     return e
 
-e = run(16, .8, 10, 2, 0, "aws", 6, [20,40])
-e = run(16, .8, 10, 2, 0, "default", 6, [20,40])
-plt.show()
+def calculateViolation(predictLine, allocateline, startTime ,endTime):
+    stepSize = 1
+    violateArea = 0
+    violateTime = 0
+    area_violations = []
+    time_violations  = []
+    for i in  drange(startTime + stepSize, endTime, stepSize):
+        predicted_i0 = getValue(predictLine,i - stepSize)
+        predicted_i1 = getValue(predictLine,i)
+        print("Predicty=  i0 :%s i1:%s" %(predicted_i0,predicted_i1))
+        allocated_i0 = getValue(allocateline, i - stepSize)
+        allocated_i1 = getValue(allocateline,i)
 
+        area_under_predicted  = simps(y = [predicted_i0, predicted_i1] , dx = stepSize)
+        area_under_allocated  = simps(y = [allocated_i0, allocated_i1] , dx = stepSize)
+        print("Areas : %s, %s"  %(area_under_predicted,area_under_allocated))
+        if area_under_allocated < area_under_predicted:
+            violateArea += (area_under_predicted -area_under_allocated)
+            violateTime += stepSize
+        area_violations.append(violateArea)
+        time_violations.append(violateTime)
+
+    area = np.array(area_violations)
+    time = np.array(time_violations)
+    xvalue =  np.arange(startTime+stepSize, endTime, stepSize)
+    f , (plt1, plt2) = plt.subplots(1,2, sharex= True)
+    plt1.plot(xvalue,area)
+    plt2.plot(xvalue,time)
+    plt.show()
+    print("ViolateArea : %s ViolateTime : %s" %(violateArea, violateTime))
+    return  violateArea, violateTime
+
+e = run(4, .8, 10, 2, 0, "aws", 6, [20,40])
+e = run(4, .8, 10, 2, 0, "default", 6, [20,40])
+plt.show()
