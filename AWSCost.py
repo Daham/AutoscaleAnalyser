@@ -20,10 +20,10 @@ def read():
             memory.append(float(row[3]))
             unix_pricing.append(float(row[4]))
     ifile.close()
-
     return [memory,vCpu,ECU,unix_pricing]
 
 valueList = read()
 for i in  range(0,len(valueList[0])):
     plt,e = AWS.run(valueList[1][i], 0.8, 5, 2, 0, "aws", valueList[3][i],[20,40])
     plt.show()
+
