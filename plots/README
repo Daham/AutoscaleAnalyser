@@ -1,0 +1,7 @@
+file naming:
+plottingFunctionName_configuration_timewindow_timerange
+
+CPU/Mem/RIF in filename identifies CPU, memory and requests-in-flight plots respectively
+
+red:   actual value
+green: s = ut + 1/2 at^2 prediction
