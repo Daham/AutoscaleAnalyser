@@ -1,6 +1,21 @@
 library(fpp)
 library(forecast)
 options(error=NULL)
+
+getMotionPridiction=function (tseries,horizon)
+{
+  currentIndex=length(tseries)
+  avg=tseries[currentIndex];
+  if(currentIndex>=3){
+    u=(tseries[currentIndex]-tseries[currentIndex-2])/2  
+    a=(tseries[currentIndex]-2*tseries[currentIndex-1]+tseries[currentIndex-2])
+  }else{
+     a=0;
+     u=0;
+  }
+  return (avg+u*horizon+0.5*a*horizon*horizon)
+}
+
 getArimaPridiction=function(tseries,horizon){
     arimaFit=auto.arima(tseries)
     fmodel=forecast(arimaFit,h=horizon)
@@ -39,41 +54,149 @@ pridiction=function (air){
       dseries=c();
       tseries=ts();     
       
-      RE=c();
-      AE=c()
-      SE=c()
-      SSE=c()
-      SAE=c()
-      residuals=c();
+      ArimaRE=c();
+      ArimaAE=c()
+      ArimaSE=c()
+      ArimaSSE=c()
+      ArimaSAE=c()
+      Arimaresiduals=c();
+      arimaSse=0;
+      arimaSae=0;
       
-      sse=0;
-      sae=0;
-      pridicted=c();
-      pridicted[1]=air[1];
+      CurrentRE=c();
+      CurrentAE=c()
+      CurrentSE=c()
+      CurrentSSE=c()
+      CurrentSAE=c()
+      Currentresiduals=c();
+      currentSse=0;
+      currenntSae=0;
       
+      NNetRE=c();
+      NNetAE=c()
+      NNetSE=c()
+      NNetSSE=c()
+      NNetSAE=c()
+      NNetresiduals=c();
+      nnetSse=0;
+      nnetSae=0;
+     
+      EnsambleRE=c();
+      EnsambleAE=c()
+      EnsambleSE=c()
+      EnsambleSSE=c()
+      EnsambleSAE=c()
+      Ensambleresiduals=c();
+      ensambletSse=0;
+      ensambletSae=0;
+     
+     
+      
+      arimaPridicted=c();
+      nnetPridicted=c();
+      ensamblePridicted=c();
+      currentPridicted=c();
+      
+      currentPridicted[1]=air[1];
+      arimaPridicted[1]=air[1];
+      nnetPridicted[1]=air[1]
+      ensamblePridicted[1]=air[1]
+      alpha=1;beta=1;
       for (i in 1:length(air)){
            dseries=c(dseries,air[i])
            tseries=ts(dseries)
-            pridicted[i+1]=getExpPridiction(tseries,1)
-            residuals[i]=(pridicted[i]-tseries[i])
-           AE[i]=abs(residuals[i])
-           SE[i]= AE[i]*AE[i];
-           sse=sse+SE[i]
-           sae=sae+AE[i] 
-           RE[i]=AE[i]/tseries[i]
-           SSE[i]=sse;
-           SAE[i]=sae;
+           
+           arimaPridicted[i+1]=getArimaPridiction(tseries,1)
+           nnetPridicted[i+1]=getNNetPridiction(tseries,1)
+           
+           
+           Arimaresiduals[i]=(arimaPridicted[i]-tseries[i])
+           ArimaAE[i]=abs(Arimaresiduals[i])
+           ArimaSE[i]= ArimaAE[i]*ArimaAE[i];
+           arimaSse=arimaSse+ ArimaSE[i]
+           arimaSae=arimaSae+ ArimaAE[i] 
+           ArimaRE[i]=ArimaAE[i]/tseries[i]
+           ArimaSSE[i]=arimaSse;
+           ArimaSAE[i]=arimaSae;
+           
+           NNetresiduals[i]=(nnetPridicted[i]-tseries[i])
+           NNetAE[i]=abs( NNetresiduals[i])
+           NNetSE[i]=  NNetAE[i]* NNetAE[i];
+           nnetSse=nnetSse+  NNetSE[i]
+           nnetSae= nnetSae+  NNetAE[i] 
+           NNetRE[i]= NNetAE[i]/tseries[i]
+           NNetSSE[i]=nnetSse;
+           NNetSAE[i]=nnetSae;
+           
+           
+           
+           
+           if(i==1 || ArimaAE[i-1]==0 || NNetAE[i-1]==0)
+           {  alpha=1
+              beta=1
+           }else
+           {       if(NNetresiduals[i]*Arimaresiduals[i]<0){
+                    alpha=NNetAE[i];
+                    beta=ArimaAE[i]             
+                   }
+                   else
+                   {
+                     if(ArimaAE[i]<NNetAE[i]){
+                       alpha=1;
+                       beta=0 
+                     } 
+                     else
+                     {
+                       alpha=0;
+                       beta=1; 
+                     }
+                   }
+           }
+           ensamblePridicted[i+1]=((alpha*arimaPridicted[i+1]+beta*nnetPridicted[i+1])/(alpha+beta))
+           currentPridicted[i+1]= getMotionPridiction(tseries,1)
+                           
+           
+             
+         
+           
+           Ensambleresiduals[i]=(ensamblePridicted[i]-tseries[i])
+           EnsambleAE[i]=abs( Ensambleresiduals[i])
+           EnsambleSE[i]=  EnsambleAE[i]* EnsambleAE[i];
+           ensambletSse=ensambletSse+  EnsambleSE[i]
+           ensambletSae= ensambletSae+  EnsambleAE[i] 
+           EnsambleRE[i]= EnsambleAE[i]/tseries[i]
+           EnsambleSSE[i]=ensambletSse;
+           EnsambleSAE[i]=ensambletSae;
+           
+          
+           Currentresiduals[i]=(currentPridicted[i]-tseries[i])
+           CurrentAE[i]=abs(Currentresiduals[i])
+           CurrentSE[i]= CurrentAE[i]*CurrentAE[i];
+           currentSse=currentSse+ CurrentSE[i]
+           currenntSae=currenntSae+ CurrentAE[i] 
+           CurrentRE[i]=CurrentAE[i]/tseries[i]
+           CurrentSSE[i]=currentSse;
+           CurrentSAE[i]=currenntSae;
+           
       }
-      ds=cbind(dseries,pridicted,AE,RE,SE,SAE,SSE)
-      #View(ds)
-     # fmodel=forecast(auto.arima(air),h=1)
-      #a=ts(pridicted,start=1875)
-     #plot(fmodel,col=2,plot.type = "s")
-     #lines(a,col = 3)
-      #lines(air,col=4)
-     return (ds)
+      ds=cbind(dseries,currentPridicted,arimaPridicted,nnetPridicted,ensamblePridicted,CurrentAE,ArimaAE,NNetAE,EnsambleAE,CurrentRE,ArimaRE,NNetRE,EnsambleRE)
+      View(ds)
+      old.par <- par(mfrow=c(2,2 ))
+      plot(ts(ds[,2],start=start(air)),col=2,plot.type = "s",ylab="", main="Real data vs Motion Equation") 
+      lines(ts(ds[,1],start=start(air)),col=1)
+      
+      plot(ts(ds[,3],start=start(air)),col=3,plot.type = "s",ylab="A", main="Real data vs ARIMA prediction")
+      lines(ts(ds[,1],start=start(air)),col=1)
+      
+      plot(ts(ds[,4],start=start(air)),col=4,plot.type = "s",ylab="", main="Real data vs Neural Network Prediction")
+      lines(ts(ds[,1],start=start(air)),col=1)
+      
+      plot(ts(ds[,5],start=start(air)),col=5,plot.type = "s",ylab="", main="Real data vs Ensamble Prediction")
+      lines(ts(ds[,1],start=start(air)),col=1)
+      
+    
 }
 
 
-ds=pridiction(air)
-View(ds)
+pridiction(oil)
+#air, euretail,sunspotarea,oil,ausair,austourists(nnet)
