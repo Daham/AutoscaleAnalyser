@@ -10,7 +10,6 @@ def violation_precentage(machine_count,machine_unit_power, predicted_arr ):
         if(x > tot_power):
             count = count +1
     violation = (float)(count) / (float)(len(predicted_arr))
-
     return violation*100
 
 

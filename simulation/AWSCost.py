@@ -1,7 +1,9 @@
+from simulation import AWS
+
 __author__ = 'bhash90'
 import csv
 import array
-import AWS
+
 
 def read():
     #type  = array.array("str")
