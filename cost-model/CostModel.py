@@ -33,11 +33,11 @@ def minToMaxIteration(minVM, maxVM, machine_unit_power,machine_unit_price, predi
     return index, violation_selected
 
 def SLA_func(precenage):
-    violation_cost = precenage/30.0
+    violation_cost = precenage/25.0
     #print(violation_cost)
     return  violation_cost
 6
-arr_2d = np.genfromtxt("predict2.csv", delimiter= ",")
+arr_2d = np.genfromtxt("cpu_predict4.csv", delimiter= ",")
 prev = -1 #time of last dataset
 prev_index = 0
 cost = 0;
@@ -55,10 +55,10 @@ for arr in arr_2d :
         continue
 
     MIN_VM = 2
-    MAX_VM = 15
-    MACHINE_UNIT_POWER = 4
-    MACHINE_UNIT_PRICE = 120
-    TIME_GAP_IN_PREDICTION = 0.2
+    MAX_VM = 100
+    MACHINE_UNIT_POWER = 6
+    MACHINE_UNIT_PRICE = 7000
+    TIME_GAP_IN_PREDICTION = 1/60.0
     index, violation = minToMaxIteration(MIN_VM,MAX_VM, MACHINE_UNIT_POWER, MACHINE_UNIT_PRICE, arr[1:len(arr)], TIME_GAP_IN_PREDICTION)
     if index != prev_index:
         changed = True
