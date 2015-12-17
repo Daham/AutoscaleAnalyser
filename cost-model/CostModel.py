@@ -17,7 +17,8 @@ def minToMaxIteration(minVM, maxVM, machine_unit_power,machine_unit_price, predi
     predicted_arr2 = predicted_arr[np.logical_not(np.isnan(predicted_arr))]
     tot_cost = 999999
     time = time_gap * len(predicted_arr2)/60.0
-   # print(time)
+
+    # print(time)
     index =   minVM
     violation_selected = 0
     for i in range(minVM, maxVM+1):
@@ -36,34 +37,46 @@ def SLA_func(precenage):
     violation_cost = precenage/25.0
     #print(violation_cost)
     return  violation_cost
-6
-arr_2d = np.genfromtxt("cpu_predict4.csv", delimiter= ",")
-prev = -1 #time of last dataset
-prev_index = 0
-cost = 0;
-changed = False
-for arr in arr_2d :
-    #print(arr[np.logical_not(np.isnan(arr))]) # remove nan
-    current = arr[0]
 
-    time_gap = 0
+def run(filename):
 
-    if prev != -1:
-        time_gap = current -prev
+    arr_2d = np.genfromtxt(filename, delimiter= ",")
+    outputFileName = "../simulation/data/optimized_cost.csv"
+    open(outputFileName, 'w').close()
+    optimizedCost = open(outputFileName,"rw+")
+    optimizedCost.write("Time,Cumulative Cost\n" )
 
-    if changed and time_gap < 2:
-        continue
 
-    MIN_VM = 2
-    MAX_VM = 100
-    MACHINE_UNIT_POWER = 6
-    MACHINE_UNIT_PRICE = 7000
-    TIME_GAP_IN_PREDICTION = 1/60.0
-    index, violation = minToMaxIteration(MIN_VM,MAX_VM, MACHINE_UNIT_POWER, MACHINE_UNIT_PRICE, arr[1:len(arr)], TIME_GAP_IN_PREDICTION)
-    if index != prev_index:
-        changed = True
-    newcost  = index * time_gap/60.0 + index * (time_gap/60.0)* SLA_func(violation)
-    cost += newcost
-    prev = current;
-    prev_index = index;
-    print("VM: %d Violation : %.3f Time: %d, newCost: %.3f Cost : %.3f" %(prev_index , violation, prev, newcost,cost))
+    prev = -1 #time of last dataset
+    prev_index = 0
+    cost = 0;
+    changed = False
+    for arr in arr_2d :
+        #print(arr[np.logical_not(np.isnan(arr))]) # remove nan
+        current = arr[0]
+        time_gap = 0
+        if prev != -1:
+            time_gap = current -prev
+
+        if changed and time_gap < 2:
+            continue
+
+        MIN_VM = 2
+        MAX_VM = 100
+        MACHINE_UNIT_POWER = 6
+        MACHINE_UNIT_PRICE = 7000
+        TIME_GAP_IN_PREDICTION = 1/60.0
+        index, violation = minToMaxIteration(MIN_VM,MAX_VM, MACHINE_UNIT_POWER, MACHINE_UNIT_PRICE, arr[1:len(arr)], TIME_GAP_IN_PREDICTION)
+        if index != prev_index:
+            changed = True
+        newcost  = index * time_gap/60.0 + index * (time_gap/60.0)* SLA_func(violation)
+        cost += newcost
+        prev = current;
+        prev_index = index;
+        print("VM: %d Violation : %.3f Time: %d, newCost: %.3f Cost : %.3f" %(prev_index , violation, prev, newcost,cost))
+        optimizedCost.seek(0, 2)
+        optimizedCost.write("%d,%.3f\n" %(prev,cost))
+
+
+#RUN
+run("../simulation/data/predicted.csv")

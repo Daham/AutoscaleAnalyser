@@ -19,8 +19,6 @@ def plot(actualWorkload,reactiveScaling, proactiveScaling, workloadType):
     plotWorkloadGraph(actualWorkload,plotArea)
     plotVMGraph(reactiveScaling,plotArea)
     plotVMGraph(proactiveScaling,plotArea)
-
-
     plotArea.legend(["Workload", "Reactive", "Proactive"], loc='upper right')
     plt.show()
 
@@ -73,4 +71,4 @@ def plotVMGraph(filename, plotArea,):
 
 
 # 0 - CPU, 1 - Memory, 2 - RIF
-plot("data/cpu_exp_wl.csv","data/cpu_exp_wl.csv","data/cpu_exp_wl.csv",0)
+plot("data/cpu_exp_wl.csv","data/reactive_scale.csv","data/rif_exp_wl.csv",0)

@@ -6,18 +6,52 @@ import array
 import matplotlib.pyplot as plt
 import numpy as np
 
+#normal cost and optimized cost details, workload details provided by CSV
+def plot(workload, normalCost, optimizedCost,workloadType):
 
-def plot(normalCost, optimizedCost):
-
-    f, (plt1, plt2) = plt.subplots(1, 2, sharex=True)
+    workloadTypes = ["CPU Usage", "Memory Consumption","Request in Flight Count"]
+    f, (workloadGraph, costGraph) = plt.subplots(1, 2, sharex=True)
     f.suptitle("Normal cost vs Optimized cost")
 
-    plotGraph(normalCost,plt1,"Normal Cost")
-    plotGraph(optimizedCost,plt2,"Optimized Cost")
+    plotWorkload(workload,workloadGraph,workloadTypes[workloadType])
+
+    costGraph.set_xlabel("Time (minutes)")
+    costGraph.set_ylabel("Total Cost")
+    costGraph.set_title("Cumulative Cost")
+
+    plotCost(normalCost,costGraph)
+    plotCost(optimizedCost,costGraph)
+    costGraph.legend(["Reactive", "Proactive" ], loc='upper left')
+
     plt.show()
 
+def plotCost(filename,plotArea):
 
-def plotGraph(filename, plotArea,graphName):
+    x_coordinates = array.array('d')
+    y_coordinates = array.array('d')
+
+    fileData = open(filename,"rb")
+    reader = csv.reader(fileData)
+
+    rownum = 0
+    for row in reader:
+        if rownum == 0:
+            rownum += 1
+        else:
+            x_coordinates.append(float(row[0]))
+            y_coordinates.append(float(row[1]))
+        rownum += 1
+    fileData.close()
+
+    # Regression
+    xdata = np.array(x_coordinates)
+    ydata = np.array(y_coordinates)
+
+    #Plot row data
+    plotArea.plot(xdata, ydata)
+
+
+def plotWorkload(filename, plotArea,workloadType):
 
     x_coordinates = array.array('d')
     y_coordinates = array.array('d')
@@ -42,13 +76,13 @@ def plotGraph(filename, plotArea,graphName):
     #Plot row data
     plotData = plotArea.plot(xdata, ydata)
     plotArea.set_xlabel("Time (minutes)")
-    plotArea.set_ylabel("Total cost")
-    plotArea.set_title(graphName)
+    plotArea.set_ylabel(workloadType)
+    plotArea.set_title("Workload")
     #plotArea.setp(lines, color='r', linewidth=2.0)
-    #plotArea.legend(["Raw Data", "Predicted", "Blind Killing","Smart Killing" ], loc='upper right')
 
 
-plot("data/cpu_exp_wl.csv","data/cpu_exp_wl.csv")
+# 0 - CPU, 1 - Memory, 2 - RIF
+plot("data/rif_exp_wl.csv","data/normal_cost.csv","data/optimized_cost.csv",2)
 
 
 
