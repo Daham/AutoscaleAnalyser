@@ -1,3 +1,5 @@
+from simulation import EMA
+
 __author__ = 'bhash90'
 #Todo Graphs should be in dame figur where necessary
 #Todo Name Aixs and lines
@@ -7,9 +9,8 @@ import array
 import matplotlib.pyplot as plt
 import numpy as np;
 import copy
-from scipy.optimize import curve_fit
 from random import randint
-import EMA
+
 
 def quad(x, a, b, c, d):
      return a * x*x*x*x*x+ b*x*x*x*x + c*x*x*x + d
