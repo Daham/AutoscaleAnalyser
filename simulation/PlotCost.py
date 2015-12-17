@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 #normal cost and optimized cost details, workload details provided by CSV
-def plot(workload, normalCost, optimizedCost,workloadType):
+def plot(workload, normalCost, optimizedCost, workloadType):
 
     workloadTypes = ["CPU Usage", "Memory Consumption","Request in Flight Count"]
     f, (workloadGraph, costGraph) = plt.subplots(1, 2, sharex=True)

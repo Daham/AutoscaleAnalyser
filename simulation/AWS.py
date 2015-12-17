@@ -9,7 +9,9 @@ import array
 import matplotlib.pyplot as plt
 import numpy as np
 import EMA
+from cost_model import CostModel
 from scipy.integrate import simps
+
 
 
 def quad(x, a, b, c, d):
@@ -68,6 +70,7 @@ def removeVMs(listVM, count, provider, now):
         killed = killed + 1
         if killed == count:
             break
+    print("%s Killed %d" %(provider, killed))
     return killed
 
 def calculateAWSCost(listVM, givenTime, price_per_hour):
@@ -111,12 +114,13 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
 
     #print(provider)
     plt.title(provider)
-    
-    x_coordinates = array.array('d')
-    y_coordinates = array.array('d')
+
     digix_cordinates = array.array('d')
     digiy_cordinates = array.array('d')
+    x_coordinates = array.array('d')
+    y_coordinates = array.array('d')
     digiy_coord_actual = array.array('d')
+    modely_coord_actual = array.array('d')
 
     #Read vlaues while converting to VM_UNITS
     ifile = open(filename, "rb")
@@ -157,32 +161,53 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     #Plot number of VMs required
     vm_count = min_VM
     yvalueset = []
-    
-    for i in drange(uptime, max(xdata) - shift + uptime, 0.1):
-        z = getValue(line2d, i - uptime)
-        yvalueset.append(z)
-        ##print(z)
-        new_vm_count = math.ceil(z/threshold_percentage)
-        if new_vm_count < min_VM:
-            new_vm_count = min_VM
+    if(provider == "default"):
+        for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
+            print(i-uptime)
+            z = getValue(line2d, i - uptime)
+            yvalueset.append(z)
+            ##print(z)
+            new_vm_count = math.ceil(z/threshold_percentage)
+            if new_vm_count < min_VM:
+                new_vm_count = min_VM
 
-        vm_change = int(math.ceil(new_vm_count - vm_count))
-        if vm_change > 0:
-            vm_count += startVMs(listVM, vm_change, i)
-        elif vm_change < 0:
-            vm_count -= removeVMs(listVM, -vm_change, provider, i)
-        
-        digix_cordinates.append(i)
-        digiy_cordinates.append(new_vm_count)
-        digiy_coord_actual.append(vm_count)
-        scaleCSV.seek(0, 2)
-        scaleCSV.write("%.3f,%.3f\n" %(i,vm_count))
+            vm_change = int(math.ceil(new_vm_count - vm_count))
+            if vm_change > 0:
+                vm_count += startVMs(listVM, vm_change, i)
+            elif vm_change < 0:
+                vm_count -= removeVMs(listVM, -vm_change, provider, i)
 
+            digix_cordinates.append(i)
+            digiy_cordinates.append(new_vm_count)
+            digiy_coord_actual.append(vm_count)
+            scaleCSV.seek(0, 2)
+            scaleCSV.write("%.3f,%.3f\n" %(i,vm_count))
+        digixdata = np.array(digix_cordinates)
+        digiydata = np.array(digiy_cordinates)
+        lineAllocate = plt1.plot(digixdata, digiydata) #requirement
+        digi_line  = plt1.plot(digixdata, digiydata) #actual
 
-    digixdata = np.array(digix_cordinates)
-    digiydata = np.array(digiy_cordinates)
-    lineAllocate = plt1.plot(digixdata, digiydata)		#requirement
-    digi_line  = plt1.plot(digixdata, np.array(digiy_coord_actual))	#actual
+    if(provider == "aws"):
+        digix, digiy = CostModel.run("../simulation/data/predicted.csv")
+        print(digix)
+        print(digiy)
+        for i in range(0, len(digix)):
+            new_vm_count = digiy[i]
+            if i != 0:
+                vm_change = int(math.ceil(digiy[i] - len([i for x in listVM if x.endTime == -1])))
+            else :
+                vm_change = int(math.ceil(digiy[0]))
+
+            if vm_change > 0:
+                vm_count += startVMs(listVM, vm_change, digix[i])
+            elif vm_change < 0:
+                vm_count -= removeVMs(listVM, -vm_change, provider, digix[i])
+            modely_coord_actual.append(vm_count)
+
+        digixdata = np.array(digix)
+        digiydata = np.array(digiy)
+        lineAllocate = plt1.plot(digixdata, digiydata) #requirement
+        digi_line  = plt1.plot(digixdata, modely_coord_actual) #actual
 
     #for vm in listVM:
         #print("VM_id %3s: %5.1f - %5.1f = %5.1f%s" % (vm.id, vm.initTime, vm.endTime,(vm.endTime if vm.endTime > 0 else i) - vm.initTime, ("" if vm.endTime > 0 else " up")))
@@ -200,12 +225,12 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     cost_line = plt2.plot(costxdata,costydata)
 
     yvalues = np.array(yvalueset)
-    e = mse(digiydata, yvalues)
+    #e = mse(digiydata, yvalues)
 
     start = max(min(line2d[0].get_xdata()), min(lineAllocate[0].get_xdata()))
     end   = min(max(line2d[0].get_xdata()), max(lineAllocate[0].get_xdata()));
     #calculateViolation(predictLine=line2d, allocateline=lineAllocate, startTime= start , endTime= end)
-    return rowdata, line2d, digi_line,cost_line, e
+    return rowdata, line2d, digi_line,cost_line
 
 def calculateViolation(predictLine, allocateline, startTime ,endTime):
     stepSize = 1
@@ -239,43 +264,29 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
     return  violateArea, violateTime
 
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
-run(4, .65, 2, 2, 0, "default", 6, [20,40], "data/actual.csv")
+#run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-#rowdata, predicted, digi_line,cost_line, e = run(4, .65, 2, 2, 0, "default", 6, [20,40])
+rowdata, predicted, digi_line,cost_line = run(4, .8, 0, 2, 0, "default", 6, [0,0], "data/actual.csv")
 
-#f, plt1 = plt.subplots(1, sharex=True)
-#plt1.plot(rowdata[0].get_xdata(), rowdata[0].get_ydata(), ".")
+f, (plt1,plt2) = plt.subplots(1,2, sharex=True)
+plt1.plot(rowdata[0].get_xdata(), rowdata[0].get_ydata(), "*")
+plt1.plot(predicted[0].get_xdata(), predicted[0].get_ydata())
+plt1.plot(digi_line[0].get_xdata(), digi_line[0].get_ydata())
 
-#plt1.plot(predicted[0].get_xdata(), predicted[0].get_ydata())
-#plt1.plot(digi_line[0].get_xdata(), digi_line[0].get_ydata())
+rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", 6, [0,0], "data/actual.csv")
 
-#rowdata2, predicted2, digi_line2,cost_line2, e = run(4, .80, 5, 2, 0, "default", 6, [20,40])
-
-#plt1.plot(digi_line2[0].get_xdata(),digi_line2[0].get_ydata())
-
-#rowdata3, predicted3, digi_line3,cost_line3, e = run(4, .98, 5, 2, 0, "default", 6, [20,40])
-
-#plt1.plot(digi_line3[0].get_xdata(),digi_line3[0].get_ydata())
-
-#plt1.legend(["Raw Data", "Predicted", "Threshold = 65%", "Threshold = 80%", "Threshold = 98%" ], loc='upper right')
-#plt1.set_xlabel("Time/minutes")
-#plt1.set_ylabel("VM_Units")
-
-"""
+plt1.plot(digi_line2[0].get_xdata(),digi_line2[0].get_ydata())
 plt2.plot(cost_line[0].get_xdata(), cost_line[0].get_ydata())
-
-rowdata2, predicted2, digi_line2,cost_line2, e = run(4, .8, 2, 2, 0, "aws", 6, [20,40])
-
 plt1.plot(digi_line2[0].get_xdata(),digi_line2[0].get_ydata())
 plt2.plot(cost_line2[0].get_xdata(),cost_line2[0].get_ydata())
 
-plt1.legend(["Raw Data", "Predicted", "Blind Killing","Smart Killing" ], loc='upper right')
+#rowdata3, predicted3, digi_line3,cost_line3, e = run(4, .98, 5, 2, 0, "default", 6, [20,40])
+#plt1.plot(digi_line3[0].get_xdata(),digi_line3[0].get_ydata())
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
+plt1.legend(["Raw Data", "Predicted", "Blind Killing","AWS -Smart Killing" ], loc='upper right')
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
-
-plt2.legend(["Blind Killing","Smart Killing" ], loc='upper left')"""
-
-#plt.show()
+plt2.legend(["Blind Killing","Smart Killing" ], loc='upper left')
+plt.show()
