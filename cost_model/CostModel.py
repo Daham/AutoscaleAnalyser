@@ -1,7 +1,7 @@
 __author__ = 'bhash90'
 
 import numpy as np
-
+import array
 
 def violation_precentage(machine_count,machine_unit_power, predicted_arr ):
     tot_power = machine_count * machine_unit_power
@@ -47,6 +47,8 @@ def run(filename):
     optimizedCost.write("Time,Cumulative Cost\n" )
 
 
+    digix_cordinates = []
+    digiy_cordinates = []
     prev = -1 #time of last dataset
     prev_index = 0
     cost = 0;
@@ -59,13 +61,15 @@ def run(filename):
             time_gap = current -prev
 
         if changed and time_gap < 2:
+            digix_cordinates.append(current)
+            digiy_cordinates.append(prev_index)
             continue
 
         MIN_VM = 2
         MAX_VM = 100
-        MACHINE_UNIT_POWER = 6
-        MACHINE_UNIT_PRICE = 7000
-        TIME_GAP_IN_PREDICTION = 1/60.0
+        MACHINE_UNIT_POWER = 4
+        MACHINE_UNIT_PRICE = 6
+        TIME_GAP_IN_PREDICTION = 1
         index, violation = minToMaxIteration(MIN_VM,MAX_VM, MACHINE_UNIT_POWER, MACHINE_UNIT_PRICE, arr[1:len(arr)], TIME_GAP_IN_PREDICTION)
         if index != prev_index:
             changed = True
@@ -73,10 +77,12 @@ def run(filename):
         cost += newcost
         prev = current;
         prev_index = index;
+        digix_cordinates.append(current)
+        digiy_cordinates.append(index)
         print("VM: %d Violation : %.3f Time: %d, newCost: %.3f Cost : %.3f" %(prev_index , violation, prev, newcost,cost))
         optimizedCost.seek(0, 2)
         optimizedCost.write("%d,%.3f\n" %(prev,cost))
-
+    return  digix_cordinates, digiy_cordinates
 
 #RUN
-run("../simulation/data/predicted.csv")
+#run("../simulation/data/predicted.csv")
