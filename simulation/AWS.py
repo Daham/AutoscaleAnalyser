@@ -11,7 +11,7 @@ import numpy as np
 import EMA
 from cost_model import CostModel
 from scipy.integrate import simps
-
+from matplotlib.lines import Line2D
 
 
 def quad(x, a, b, c, d):
@@ -88,8 +88,8 @@ def calculateAWSCost(listVM, givenTime, price_per_hour):
     return cost
 
 def getValue(line2d, x):
-    xvalues = line2d[0].get_xdata()
-    yvalues = line2d[0].get_ydata()
+    xvalues = line2d.get_xdata()
+    yvalues = line2d.get_ydata()
     idx = np.where(xvalues == xvalues[x])
     return yvalues[idx][0]
 
@@ -99,7 +99,6 @@ def mse(predictions, targets):
 
 def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider, vm_price_per_hour, vm_init_data, filename):
     listVM = list()
-    f, (plt1, plt2) = plt.subplots(1, 2, sharex=True)
 
     scaleCSVFileName = "data/reactive_scale.csv"
     costCSVFileName = "data/normal_cost.csv"
@@ -111,9 +110,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     scaleCSV.write("Time,VM Count\n" )
     costCSV.write( "Time,Total Cost\n" )
 
-
-    #print(provider)
-    plt.title(provider)
+    print(provider)
 
     digix_cordinates = array.array('d')
     digiy_cordinates = array.array('d')
@@ -142,12 +139,12 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     ydata = np.array(y_coordinates)
 
     #Plot row data
-    rowdata = plt1.plot(xdata, ydata, '*')
+    rowdata = Line2D(xdata, ydata)
 
     #plot regression line of data
     #plt1.plot(xdata, quad(xdata,popt[0],popt[1],popt[2], popt[3]), '-')
     #plot EMA
-    line2d = plt1.plot(xdata, EMA.ema(ydata ,3))
+    line2d = Line2D(xdata, EMA.ema(ydata ,3))
 
     #Initialize min_VMs
     #VM = [23,42] #Todo fill with randoms
@@ -184,8 +181,8 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             scaleCSV.write("%.3f,%.3f\n" %(i,vm_count))
         digixdata = np.array(digix_cordinates)
         digiydata = np.array(digiy_cordinates)
-        lineAllocate = plt1.plot(digixdata, digiydata) #requirement
-        digi_line  = plt1.plot(digixdata, digiydata) #actual
+        lineAllocate = Line2D(digixdata, digiydata) #requirement
+        digi_line  = Line2D(digixdata, digiydata) #actual
 
     if(provider == "aws"):
         digix, digiy = CostModel.run("../simulation/data/predicted.csv")
@@ -206,8 +203,8 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
 
         digixdata = np.array(digix)
         digiydata = np.array(digiy)
-        lineAllocate = plt1.plot(digixdata, digiydata) #requirement
-        digi_line  = plt1.plot(digixdata, modely_coord_actual) #actual
+        lineAllocate = Line2D(digixdata, digiydata) #requirement
+        digi_line  = Line2D(digixdata, modely_coord_actual) #actual
 
     #for vm in listVM:
         #print("VM_id %3s: %5.1f - %5.1f = %5.1f%s" % (vm.id, vm.initTime, vm.endTime,(vm.endTime if vm.endTime > 0 else i) - vm.initTime, ("" if vm.endTime > 0 else " up")))
@@ -222,13 +219,13 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     costydata = np.array(costValues)
     costxdata = np.arange(0, max(xdata), 1)
 
-    cost_line = plt2.plot(costxdata,costydata)
+    cost_line = Line2D(costxdata,costydata)
 
     yvalues = np.array(yvalueset)
     #e = mse(digiydata, yvalues)
 
-    start = max(min(line2d[0].get_xdata()), min(lineAllocate[0].get_xdata()))
-    end   = min(max(line2d[0].get_xdata()), max(lineAllocate[0].get_xdata()));
+    start = max(min(line2d.get_xdata()), min(lineAllocate.get_xdata()))
+    end   = min(max(line2d.get_xdata()), max(lineAllocate.get_xdata()));
     #calculateViolation(predictLine=line2d, allocateline=lineAllocate, startTime= start , endTime= end)
     return rowdata, line2d, digi_line,cost_line
 
@@ -269,19 +266,19 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 rowdata, predicted, digi_line,cost_line = run(4, .8, 0, 2, 0, "default", 6, [0,0], "data/actual.csv")
 
 f, (plt1,plt2) = plt.subplots(1,2, sharex=True)
-plt1.plot(rowdata[0].get_xdata(), rowdata[0].get_ydata(), "*")
-plt1.plot(predicted[0].get_xdata(), predicted[0].get_ydata())
-plt1.plot(digi_line[0].get_xdata(), digi_line[0].get_ydata())
+plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*")
+plt1.plot(predicted.get_xdata(), predicted.get_ydata())
+plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())
 
 rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", 6, [0,0], "data/actual.csv")
 
-plt1.plot(digi_line2[0].get_xdata(),digi_line2[0].get_ydata())
-plt2.plot(cost_line[0].get_xdata(), cost_line[0].get_ydata())
-plt1.plot(digi_line2[0].get_xdata(),digi_line2[0].get_ydata())
-plt2.plot(cost_line2[0].get_xdata(),cost_line2[0].get_ydata())
+plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
+plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())
+plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
+plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata())
 
 #rowdata3, predicted3, digi_line3,cost_line3, e = run(4, .98, 5, 2, 0, "default", 6, [20,40])
-#plt1.plot(digi_line3[0].get_xdata(),digi_line3[0].get_ydata())
+#plt1.plot(digi_line3.get_xdata(),digi_line3.get_ydata())
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
