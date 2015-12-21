@@ -97,15 +97,14 @@ def mse(predictions, targets):
     e = np.sqrt(np.mean((predictions - targets)**2))
     return e
 
-def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider, vm_price_per_hour, vm_init_data, filename):
+def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider, 
+	vm_price_per_hour, vm_init_data, actualFileName, scaleFileName, costFileName):
     listVM = list()
 
-    scaleCSVFileName = "data/reactive_scale.csv"
-    costCSVFileName = "data/normal_cost.csv"
-    open(scaleCSVFileName, 'w').close()
-    open(costCSVFileName, 'w').close()
-    scaleCSV = open(scaleCSVFileName,"rw+")
-    costCSV = open(costCSVFileName,"rw+")
+    open(scaleFileName, 'w').close()
+    open(costFileName, 'w').close()
+    scaleCSV = open(scaleFileName,"rw+")
+    costCSV = open(costFileName,"rw+")
 
     scaleCSV.write("Time,VM Count\n" )
     costCSV.write( "Time,Total Cost\n" )
@@ -120,7 +119,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     modely_coord_actual = array.array('d')
 
     #Read vlaues while converting to VM_UNITS
-    ifile = open(filename, "rb")
+    ifile = open(actualFileName, "rb")
     reader = csv.reader(ifile)
     rownum = 0
     for row in reader:
@@ -178,14 +177,14 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             digiy_cordinates.append(new_vm_count)
             digiy_coord_actual.append(vm_count)
             scaleCSV.seek(0, 2)
-            scaleCSV.write("%.3f,%.3f\n" %(i,vm_count))
+            scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
         digixdata = np.array(digix_cordinates)
         digiydata = np.array(digiy_cordinates)
         lineAllocate = Line2D(digixdata, digiydata) #requirement
         digi_line  = Line2D(digixdata, digiydata) #actual
 
     if(provider == "aws"):
-        digix, digiy = CostModel.run("../simulation/data/predicted.csv")
+        digix, digiy = CostModel.run(actualFileName)
         print(digix)
         print(digiy)
         for i in range(0, len(digix)):
@@ -193,13 +192,15 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             if i != 0:
                 vm_change = int(math.ceil(digiy[i] - len([i for x in listVM if x.endTime == -1])))
             else :
-                vm_change = int(math.ceil(digiy[0]))
+                vm_change = int(math.ceil(digiy[0] - len([i for x in listVM if x.endTime == -1])))
 
             if vm_change > 0:
                 vm_count += startVMs(listVM, vm_change, digix[i])
             elif vm_change < 0:
                 vm_count -= removeVMs(listVM, -vm_change, provider, digix[i])
             modely_coord_actual.append(vm_count)
+            scaleCSV.seek(0, 2)
+            scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
 
         digixdata = np.array(digix)
         digiydata = np.array(digiy)
@@ -263,14 +264,14 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-rowdata, predicted, digi_line,cost_line = run(4, .8, 0, 2, 0, "default", 6, [0,0], "data/actual.csv")
+rowdata, predicted, digi_line,cost_line = run(4, 0.8, 0, 2, 0, "default", 6, [0,0], "data/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
 f, (plt1,plt2) = plt.subplots(1,2, sharex=True)
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*")
 plt1.plot(predicted.get_xdata(), predicted.get_ydata())
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())
 
-rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", 6, [0,0], "data/actual.csv")
+rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", 6, [0,0], "data/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
 
 plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())

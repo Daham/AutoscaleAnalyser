@@ -7,7 +7,7 @@ import numpy as np
 
 #workload data and reactive, proactive instance details provided via CSV
 
-def plot(actualWorkload,reactiveScaling, proactiveScaling, workloadType):
+def plot(actualWorkload, reactiveScaling, proactiveScaling, workloadType):
 
     workloadTypes = ["CPU Usage", "Memory Consumption","Request in Flight Count"]
     f, (plotArea) = plt.subplots(1, sharex=True)
@@ -17,8 +17,8 @@ def plot(actualWorkload,reactiveScaling, proactiveScaling, workloadType):
     plotArea.set_ylabel("VM Count / " + workloadTypes[workloadType])
 
     plotWorkloadGraph(actualWorkload,plotArea)
-    plotVMGraph(reactiveScaling,plotArea)
-    plotVMGraph(proactiveScaling,plotArea)
+    plotVMGraph(reactiveScaling, plotArea, 'r', 1)
+    plotVMGraph(proactiveScaling, plotArea, 'g', 2)
     plotArea.legend(["Workload", "Reactive", "Proactive"], loc='upper right')
     plt.show()
 
@@ -43,10 +43,10 @@ def plotWorkloadGraph(filename, plotArea):
     xdata = np.array(x_coordinates)
     ydata = np.array(y_coordinates)
 
-    plotArea.plot(xdata, ydata)
+    plotArea.plot(xdata, ydata, color="black")
 
 
-def plotVMGraph(filename, plotArea,):
+def plotVMGraph(filename, plotArea, color, linewidth):
 
     x_coordinates = array.array('d')
     y_coordinates = array.array('d')
@@ -67,8 +67,8 @@ def plotVMGraph(filename, plotArea,):
     xdata = np.array(x_coordinates)
     ydata = np.array(y_coordinates)
 
-    plotArea.plot(xdata, ydata)
+    plotArea.plot(xdata, ydata, color=color, linewidth=linewidth)
 
 
 # 0 - CPU, 1 - Memory, 2 - RIF
-plot("data/cpu_exp_wl.csv","data/reactive_scale.csv","data/rif_exp_wl.csv",0)
+plot("data/actual.csv", "data/reactive_scale.csv", "data/proactive_scale.csv",0)

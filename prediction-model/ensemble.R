@@ -175,6 +175,8 @@ prediction=function (tsdata, doView=TRUE, horizon=1) {
   if (doView) {
     ds=cbind(dseries,currentPredicted,arimaPredicted,nnetPredicted,ensemblePredicted,CurrentAE,ArimaAE,NNetAE,EnsembleAE,CurrentRE,ArimaRE,NNetRE,EnsembleRE)
     #View(ds)
+    pdf("plot.pdf")
+
     old.par <- par(mfrow=c(2,2 ))
     plot(ts(ds[,3],start=start(tsdata)),col=2,plot.type = "s",ylab="", main="Real data vs ARIMA prediction") 
     lines(ts(ds[,1],start=start(tsdata)),col=1)
@@ -187,21 +189,24 @@ prediction=function (tsdata, doView=TRUE, horizon=1) {
     
     plot(ts(ds[,5],start=start(tsdata)),col=5,plot.type = "s",ylab="", main="Real data vs Ensemble Prediction")
     lines(ts(ds[,1],start=start(tsdata)),col=1)
+
+		dev.off ();
   }
   return(ensembleDataFrame)
 }
 
 generatePredictions = function() {
   horizon = 15
-  limit = 100
   
-  infile = "../datasets/lajan/4-5/3000/cpu"
+  start = 1
+  limit = 200
+  infile = "../datasets/lajan/4-5/1000/cpu"
   outdir = "../simulation/data/"
   datafile = paste(outdir, "actual.csv", sep="")
   outfile = paste(outdir, "predicted.csv", sep="")
   
   #file = commandArgs(TRUE)
-  data = read.csv(file=infile, header=FALSE)[1:limit,]
+  data = read.csv(file=infile, header=FALSE)[start:(start+limit),]
   write.table(data, file=datafile, quote=FALSE, col.names=FALSE, sep=",")
   
   output = prediction(ts(data), TRUE, horizon)

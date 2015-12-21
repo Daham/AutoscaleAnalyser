@@ -34,18 +34,13 @@ def minToMaxIteration(minVM, maxVM, machine_unit_power,machine_unit_price, predi
     return index, violation_selected
 
 def SLA_func(precenage):
-    violation_cost = precenage/25.0
+    violation_cost = precenage/5.0
     #print(violation_cost)
     return  violation_cost
 
 def run(filename):
 
     arr_2d = np.genfromtxt(filename, delimiter= ",")
-    outputFileName = "../simulation/data/optimized_cost.csv"
-    open(outputFileName, 'w').close()
-    optimizedCost = open(outputFileName,"rw+")
-    optimizedCost.write("Time,Cumulative Cost\n" )
-
 
     digix_cordinates = []
     digiy_cordinates = []
@@ -80,8 +75,6 @@ def run(filename):
         digix_cordinates.append(current)
         digiy_cordinates.append(index)
         print("VM: %d Violation : %.3f Time: %d, newCost: %.3f Cost : %.3f" %(prev_index , violation, prev, newcost,cost))
-        optimizedCost.seek(0, 2)
-        optimizedCost.write("%d,%.3f\n" %(prev,cost))
     return  digix_cordinates, digiy_cordinates
 
 #RUN
