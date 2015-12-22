@@ -70,7 +70,7 @@ def removeVMs(listVM, count, provider, now):
         killed = killed + 1
         if killed == count:
             break
-    print("%s Killed %d" %(provider, killed))
+    #print("%s Killed %d" %(provider, killed))
     return killed
 
 def calculateAWSCost(listVM, givenTime, price_per_hour):
@@ -91,13 +91,13 @@ def getValue(line2d, x):
     xvalues = line2d.get_xdata()
     yvalues = line2d.get_ydata()
     idx = np.where(xvalues == xvalues[x])
-    return yvalues[idx][0]
+    return yvalues[idx[0]]
 
 def mse(predictions, targets):
     e = np.sqrt(np.mean((predictions - targets)**2))
     return e
 
-def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider, 
+def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider, prediction_type,
 	vm_price_per_hour, vm_init_data, actualFileName, scaleFileName, costFileName):
     listVM = list()
 
@@ -109,7 +109,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     scaleCSV.write("Time,VM Count\n" )
     costCSV.write( "Time,Total Cost\n" )
 
-    print(provider)
+    #print(provider)
 
     digix_cordinates = array.array('d')
     digiy_cordinates = array.array('d')
@@ -157,9 +157,9 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     #Plot number of VMs required
     vm_count = min_VM
     yvalueset = []
-    if(provider == "default"):
+    if(provider == "default" and prediction_type == "reactive"):
         for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
-            print(i-uptime)
+            #print(i-uptime)
             z = getValue(line2d, i - uptime)
             yvalueset.append(z)
             ##print(z)
@@ -183,10 +183,36 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         lineAllocate = Line2D(digixdata, digiydata) #requirement
         digi_line  = Line2D(digixdata, digiydata) #actual
 
-    if(provider == "aws"):
+    if(provider == "aws" and prediction_type == "reactive"):
+            for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
+                #print(i-uptime)
+                z = getValue(line2d, i - uptime)
+                yvalueset.append(z)
+                ##print(z)
+                new_vm_count = math.ceil(z/threshold_percentage)
+                if new_vm_count < min_VM:
+                    new_vm_count = min_VM
+
+                vm_change = int(math.ceil(new_vm_count - vm_count))
+                if vm_change > 0:
+                    vm_count += startVMs(listVM, vm_change, i)
+                elif vm_change < 0:
+                    vm_count -= removeVMs(listVM, -vm_change, provider, i)
+
+                digix_cordinates.append(i)
+                digiy_cordinates.append(new_vm_count)
+                digiy_coord_actual.append(vm_count)
+                scaleCSV.seek(0, 2)
+                scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
+            digixdata = np.array(digix_cordinates)
+            digiydata = np.array(digiy_cordinates)
+            lineAllocate = Line2D(digixdata, digiydata) #requirement
+            digi_line  = Line2D(digixdata, digiydata) #actual
+
+    if(provider == "aws" and prediction_type == "proactive"):
         digix, digiy = CostModel.run(actualFileName)
-        print(digix)
-        print(digiy)
+        #print(digix)
+        #print(digiy)
         for i in range(0, len(digix)):
             new_vm_count = digiy[i]
             if i != 0:
@@ -264,27 +290,55 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-rowdata, predicted, digi_line,cost_line = run(4, 0.8, 0, 2, 0, "default", 6, [0,0], "data/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
+rowdata, predicted, digi_line,cost_line = run(4, 0.8, 0, 2, 0, "default","reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
 f, (plt1,plt2) = plt.subplots(1,2, sharex=True)
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*")
 plt1.plot(predicted.get_xdata(), predicted.get_ydata())
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())
 
-rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", 6, [0,0], "data/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
+rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", "proactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
 
 plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())
-plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
 plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata())
+
+rowdata3, predicted3, digi_line3,cost_line3 = run(4, 0.8, 0, 2, 0, "aws", "reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/normal2_cost.csv")
+
+plt1.plot(digi_line3.get_xdata(),digi_line3.get_ydata())
+plt2.plot(cost_line3.get_xdata(),cost_line3.get_ydata())
+
+tot_count = 0.0
+vio_count = 0.0
+total_costx = array.array('d')
+total_costy = array.array('d')
+for m in rowdata.get_xdata()-2:
+
+    tot_count += 1
+    row_value     = getValue(rowdata, m)
+    predict_value = getValue(digi_line2,m)
+    revenue_cost  =  getValue(cost_line2, m)
+    if(row_value> predict_value):
+        vio_count += 1
+    precentage = (vio_count/tot_count)*100.0
+    print("Vio_Count: %d" %vio_count)
+    print("Tot_count : %d" %tot_count)
+    print("Precentage: %s" %precentage)
+    tot_cost = revenue_cost + CostModel.SLA_func(precentage)*6*(m/60.0)
+    total_costx.append(m)
+    total_costy.append(tot_cost)
+
+print("Vio_count: %d" %vio_count)
+print("Tot_count : %d" %tot_count)
+plt2.plot(total_costx,total_costy)
 
 #rowdata3, predicted3, digi_line3,cost_line3, e = run(4, .98, 5, 2, 0, "default", 6, [20,40])
 #plt1.plot(digi_line3.get_xdata(),digi_line3.get_ydata())
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
-plt1.legend(["Raw Data", "Predicted", "Blind Killing","AWS -Smart Killing" ], loc='upper right')
+plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing","Proactive -Smart Killing", "Reactive -Smart Killing" ], loc='upper right')
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
-plt2.legend(["Blind Killing","Smart Killing" ], loc='upper left')
+plt2.legend(["Reactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='upper left')
 plt.show()
