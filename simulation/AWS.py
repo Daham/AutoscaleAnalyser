@@ -52,13 +52,17 @@ def removeVMs(listVM, count, provider, now):
     for vm in listVM:
         if vm.endTime == -1:
             if provider == "default":
+               # print("Blind Kill from Provider................................................................ : %s" %provider)
                 candidates.append((vm, 0))	#dummy value for hourFraction
                 if len(candidates) == count:
                     break
             elif provider == "aws":		#first pick all candidates
+               # print("Smart Kill from Provider : %s" %provider)
                 hourFraction = (now - vm.initTime)%60
                 if AWS_MIN_MINUTES_BEFORE_KILL < hourFraction < AWS_MAX_MINUTES_BEFORE_KILL:
                     candidates.append((vm, hourFraction))
+            #else:
+                # print(".................................................................")
 
     if provider == "aws":		#sort descending w.r.t. hourFraction
         candidates.sort(lambda x, y: (int)(y[1] - x[1]))
@@ -66,7 +70,7 @@ def removeVMs(listVM, count, provider, now):
     #kill as many as possible/required
     for (vm, hourFraction) in candidates:
         vm.endTime = now
-        ##print("End VM %s at %s" % (vm.id, now))
+        print("End VM %s at %s" % (vm.id, now))
         killed = killed + 1
         if killed == count:
             break
@@ -180,10 +184,11 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
         digixdata = np.array(digix_cordinates)
         digiydata = np.array(digiy_cordinates)
+        actualydata = np.array(digiy_coord_actual)
         lineAllocate = Line2D(digixdata, digiydata) #requirement
-        digi_line  = Line2D(digixdata, digiydata) #actual
+        digi_line  = Line2D(digixdata, actualydata) #actual
 
-    if(provider == "aws" and prediction_type == "reactive"):
+    elif(provider == "aws" and prediction_type == "reactive"):
             for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
                 #print(i-uptime)
                 z = getValue(line2d, i - uptime)
@@ -206,10 +211,12 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
                 scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
             digixdata = np.array(digix_cordinates)
             digiydata = np.array(digiy_cordinates)
+            actualydata = np.array(digiy_coord_actual)
             lineAllocate = Line2D(digixdata, digiydata) #requirement
-            digi_line  = Line2D(digixdata, digiydata) #actual
+            digi_line  = Line2D(digixdata, actualydata) #actual
 
-    if(provider == "aws" and prediction_type == "proactive"):
+
+    elif(provider == "aws" and prediction_type == "proactive"):
         digix, digiy = CostModel.run(actualFileName)
         #print(digix)
         #print(digiy)
@@ -292,21 +299,24 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 
 rowdata, predicted, digi_line,cost_line = run(4, 0.8, 0, 2, 0, "default","reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
-f, (plt1,plt2) = plt.subplots(1,2, sharex=True)
-plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*")
-plt1.plot(predicted.get_xdata(), predicted.get_ydata())
-plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())
+f, (plt1, plt3, plt4) = plt.subplots(1,3,sharey=True)
+f2, plt2 = plt.subplots(1,1)
+plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
+plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
+plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())  #Reactive Blind Killing Cost
 
 rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", "proactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
 
-plt1.plot(digi_line2.get_xdata(),digi_line2.get_ydata())
-plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())
-plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata())
+plt3.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+plt3.plot(digi_line2.get_xdata(),digi_line2.get_ydata()) #Proactive Smart Killing
+plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata()) #Proactive Smart Killing cost
 
 rowdata3, predicted3, digi_line3,cost_line3 = run(4, 0.8, 0, 2, 0, "aws", "reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/normal2_cost.csv")
 
-plt1.plot(digi_line3.get_xdata(),digi_line3.get_ydata())
-plt2.plot(cost_line3.get_xdata(),cost_line3.get_ydata())
+plt4.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+plt4.plot(digi_line3.get_xdata(),digi_line3.get_ydata()) #Reactive Smart Killing
+plt2.plot(cost_line3.get_xdata(),cost_line3.get_ydata()) #Reactive Smart Killing Cost
 
 tot_count = 0.0
 vio_count = 0.0
@@ -337,8 +347,17 @@ plt2.plot(total_costx,total_costy)
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
-plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing","Proactive -Smart Killing", "Reactive -Smart Killing" ], loc='upper right')
+plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing","Reactive -Smart Killing" ], loc='lower right')
+
+plt3.set_xlabel("Time/minutes")
+plt3.set_ylabel("VM_Units")
+plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='lower right')
+
+plt4.set_xlabel("Time/minutes")
+plt4.set_ylabel("VM_Units")
+plt4.legend(["Raw Data", "Reactive -Smart Killing"], loc='lower right')
+
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
-plt2.legend(["Reactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='upper left')
+plt2.legend(["Reactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='lower right')
 plt.show()
