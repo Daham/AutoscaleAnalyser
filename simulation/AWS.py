@@ -297,7 +297,13 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-rowdata, predicted, digi_line,cost_line = run(4, 0.8, 0, 2, 0, "default","reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
+M3_MEDIUM_HOURLY_PRICE = 0.067
+REATIVE_THREASHOLDE =  0.8
+PROACTIVE_THRESHOLD = 1
+MIN_VM =2
+VM_PARAM_UNIT = 4
+
+rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
 f, (plt1, plt3, plt4) = plt.subplots(1,3,sharey=True)
 f2, plt2 = plt.subplots(1,1)
@@ -306,13 +312,13 @@ plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())  #Reactive Blind Killing Cost
 
-rowdata2, predicted2, digi_line2,cost_line2 = run(4, 1, 0, 2, 0, "aws", "proactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
+rowdata2, predicted2, digi_line2,cost_line2 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "aws", "proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
 
 plt3.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt3.plot(digi_line2.get_xdata(),digi_line2.get_ydata()) #Proactive Smart Killing
 plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata()) #Proactive Smart Killing cost
 
-rowdata3, predicted3, digi_line3,cost_line3 = run(4, 0.8, 0, 2, 0, "aws", "reactive", 6, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/normal2_cost.csv")
+rowdata3, predicted3, digi_line3,cost_line3 = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "aws", "reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/normal2_cost.csv")
 
 plt4.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt4.plot(digi_line3.get_xdata(),digi_line3.get_ydata()) #Reactive Smart Killing
@@ -334,7 +340,7 @@ for m in rowdata.get_xdata()-2:
     print("Vio_Count: %d" %vio_count)
     print("Tot_count : %d" %tot_count)
     print("Precentage: %s" %precentage)
-    tot_cost = revenue_cost + CostModel.SLA_func(precentage)*6*(m/60.0)
+    tot_cost = revenue_cost + CostModel.SLA_func(precentage)*M3_MEDIUM_HOURLY_PRICE*(m/60.0)
     total_costx.append(m)
     total_costy.append(tot_cost)
 
