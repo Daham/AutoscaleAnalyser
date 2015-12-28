@@ -37,7 +37,17 @@ def minToMaxIteration(minVM, maxVM, currentVM, machine_unit_power,machine_unit_p
     return index, violation_selected
 
 def SLA_func(precenage):
-    violation_cost = precenage/10.0
+    #Google Appengine SLA modified
+    violation_cost = 0
+    if precenage <1 and precenage > 0.05:
+        violation_cost = 0.1
+    elif precenage <1 and precenage > 5:
+        violation_cost = 0.25
+    elif precenage < 5 and precenage < 10:
+        violation_cost = 0.5
+    else : #modified part
+        violation_cost = pow(2,precenage/30)
+# violation_cost = precenage/10.0
     #print(violation_cost)
     return  violation_cost
 

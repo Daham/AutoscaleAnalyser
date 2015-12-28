@@ -82,13 +82,13 @@ def calculateAWSCost(listVM, givenTime, price_per_hour):
     for vm in listVM:
         if(vm.initTime < givenTime):
             if(vm.endTime == -1 or (vm.endTime > givenTime)):
-                billing_hours = int(math.ceil((givenTime - vm.initTime)/60))
+                billing_hours = int(math.ceil((givenTime - vm.initTime)/60.0))
                 cost += billing_hours * price_per_hour
                 ##print("cost: %s at %s and %s init %s" % (cost,givenTime,vm.endTime, vm.initTime))
             else:
-                billing_hours = int(math.ceil((vm.endTime - vm.initTime)/60))
+                billing_hours = int(math.ceil((vm.endTime - vm.initTime)/60.0))
                 cost += billing_hours * price_per_hour
-    ##print("cost: %s at %s" % (cost,givenTime))
+                #print("cost: %s at %s" % (cost,givenTime))
     return cost
 
 def getValue(line2d, x):
@@ -306,7 +306,17 @@ VM_PARAM_UNIT = 4
 rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
 f, (plt1, plt3, plt4) = plt.subplots(1,3,sharey=True)
-f2, plt2 = plt.subplots(1,1)
+f2, (func_plot, plt2) = plt.subplots(1,2)
+
+violation_x = array.array('d')
+violation_y = array.array('d')
+
+for n in drange(0, 100, 0.05):
+    violation_x.append(n)
+    violation_y.append(CostModel.SLA_func(n))
+
+func_plot.plot(violation_x, violation_y)
+
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
@@ -340,7 +350,9 @@ for m in rowdata.get_xdata()-2:
     print("Vio_Count: %d" %vio_count)
     print("Tot_count : %d" %tot_count)
     print("Precentage: %s" %precentage)
-    tot_cost = revenue_cost + CostModel.SLA_func(precentage)*M3_MEDIUM_HOURLY_PRICE*(m/60.0)
+    vio_cost = CostModel.SLA_func(precentage)*M3_MEDIUM_HOURLY_PRICE*(m/60.0)
+    tot_cost = revenue_cost + vio_cost
+    print("Violation Cost : %.3f .................................." %vio_cost)
     total_costx.append(m)
     total_costy.append(tot_cost)
 
