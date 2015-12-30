@@ -44,7 +44,7 @@ def startVMs(listVM, count, i):
 #random remove implemented. Check the provider and implement as a switch
 def removeVMs(listVM, count, provider, now):
     AWS_MIN_MINUTES_BEFORE_KILL = 50	#don't kill if less than this # minutes of last hour is spent
-    AWS_MAX_MINUTES_BEFORE_KILL = 57	#don't kill if more than this # minutes of last hour is spent
+    AWS_MAX_MINUTES_BEFORE_KILL = 60	#don't kill if more than this # minutes of last hour is spent
     
     killed = 0
     candidates = []
@@ -318,11 +318,11 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-M3_MEDIUM_HOURLY_PRICE = 0.067
+M3_MEDIUM_HOURLY_PRICE = 0.3
 REACTIVE_THREASHOLD =  0.8
 PROACTIVE_THRESHOLD = 1
 MIN_VM =2
-VM_PARAM_UNIT = 4
+VM_PARAM_UNIT = 16
 
 #rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
