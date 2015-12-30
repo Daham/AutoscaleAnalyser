@@ -12,7 +12,7 @@ import EMA
 from cost_model import CostModel
 from scipy.integrate import simps
 from matplotlib.lines import Line2D
-
+import Stratos
 
 def quad(x, a, b, c, d):
     return a * x*x*x*x*x + b*x*x*x*x + c*x*x*x + d
@@ -149,6 +149,9 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     #plot EMA
     line2d = Line2D(xdata, EMA.ema(ydata ,3))
 
+    #plot stratos
+    line2d_stratos = Line2D(xdata[2:len(xdata)]-3,Stratos.Stratos(ydata))
+
     #Initialize min_VMs
     #VM = [23,42] #Todo fill with randoms
 
@@ -164,6 +167,62 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     if(provider == "default" and prediction_type == "reactive"):
         for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
             #print(i-uptime)
+            z = getValue(line2d, i - uptime)
+            yvalueset.append(z)
+            ##print(z)
+            new_vm_count = math.ceil(z/threshold_percentage)
+            if new_vm_count < min_VM:
+                new_vm_count = min_VM
+
+            vm_change = int(math.ceil(new_vm_count - vm_count))
+            if vm_change > 0:
+                vm_count += startVMs(listVM, vm_change, i)
+            elif vm_change < 0:
+                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+
+            digix_cordinates.append(i)
+            digiy_cordinates.append(new_vm_count)
+            digiy_coord_actual.append(vm_count)
+            scaleCSV.seek(0, 2)
+            scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
+        digixdata = np.array(digix_cordinates)
+        digiydata = np.array(digiy_cordinates)
+        actualydata = np.array(digiy_coord_actual)
+        lineAllocate = Line2D(digixdata, digiydata) #requirement
+        digi_line  = Line2D(digixdata, actualydata) #actual
+
+    elif(provider == "default" and prediction_type == "stratos"):
+        for i in drange(uptime+2, max(xdata) - shift + uptime -4, 0.1):
+            print(i)
+            line2d = line2d_stratos
+            z = getValue(line2d_stratos, i - uptime)
+            yvalueset.append(z)
+            ##print(z)
+            new_vm_count = math.ceil(z/threshold_percentage)
+            if new_vm_count < min_VM:
+                new_vm_count = min_VM
+
+            vm_change = int(math.ceil(new_vm_count - vm_count))
+            if vm_change > 0:
+                vm_count += startVMs(listVM, vm_change, i)
+            elif vm_change < 0:
+                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+
+            digix_cordinates.append(i)
+            digiy_cordinates.append(new_vm_count)
+            digiy_coord_actual.append(vm_count)
+            scaleCSV.seek(0, 2)
+            scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
+        digixdata = np.array(digix_cordinates)
+        digiydata = np.array(digiy_cordinates)
+        actualydata = np.array(digiy_coord_actual)
+        lineAllocate = Line2D(digixdata, digiydata) #requirement
+        digi_line  = Line2D(digixdata, actualydata) #actual
+
+    elif(provider == "aws" and prediction_type == "stratos"):
+        for i in drange(uptime, max(xdata) - shift + uptime -4, 0.1):
+            print(i)
+            line2d = line2d_stratos
             z = getValue(line2d, i - uptime)
             yvalueset.append(z)
             ##print(z)
@@ -328,6 +387,7 @@ VM_PARAM_UNIT = 4
 
 f0, (plt1,plt4) = plt.subplots(2,1,sharey=True)
 f1, (plt11,plt3 ) = plt.subplots(2,1,sharey=True)
+f_stratos, (plt_str_1, plt_str_2 ) = plt.subplots(2,1,sharey=True)
 f2, (func_plot, plt2) = plt.subplots(1,2)
 
 violation_x = array.array('d')
@@ -341,6 +401,7 @@ func_plot.plot(violation_x, violation_y)
 
 #filename = "../datasets/predicted_static/predicted.csv"
 filename = "data2predicted.csv"
+filename2 = "data2actual.csv"
 rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
 
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
@@ -348,10 +409,24 @@ plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())  #Reactive Blind Killing Cost
 
+rowdata_str_1, predicted_str_1, digi_line_str_1,cost_line_str_1 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","stratos", M3_MEDIUM_HOURLY_PRICE, [0,0], filename2, "data/reactive_scale.csv", "data/normal_cost.csv")
+
+plt_str_1.plot(rowdata_str_1.get_xdata(), rowdata_str_1.get_ydata(), "*") #rowdata
+plt_str_1.plot(predicted_str_1.get_xdata(), predicted_str_1.get_ydata())  #Stratos predicted
+plt_str_1.plot(digi_line_str_1.get_xdata(), digi_line_str_1.get_ydata())  #Reactive Blind Killing
+plt2.plot(cost_line_str_1.get_xdata(), cost_line_str_1.get_ydata())  #Stratos Blind Killing Cost
+
+rowdata_str_2, predicted_str_2, digi_line_str_2,cost_line_str_2 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "aws","stratos", M3_MEDIUM_HOURLY_PRICE, [0,0], filename2, "data/reactive_scale.csv", "data/normal_cost.csv")
+
+plt_str_2.plot(rowdata_str_2.get_xdata(), rowdata_str_2.get_ydata(), "*") #rowdata
+plt_str_2.plot(predicted_str_2.get_xdata(), predicted_str_2.get_ydata())  #Stratos predicted
+plt_str_2.plot(digi_line_str_2.get_xdata(), digi_line_str_2.get_ydata())  #Reactive Blind Killing
+plt2.plot(cost_line_str_2.get_xdata(), cost_line_str_2.get_ydata())  #Stratos Smart Killing Cost
+
 rowdata11, predicted11, digi_line11,cost_line11 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "default","proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
 
 plt11.plot(rowdata11.get_xdata(), rowdata11.get_ydata(), "*") #rowdata
-plt11.plot(predicted11.get_xdata(), predicted11.get_ydata())  #EMA predicted
+#plt11.plot(predicted11.get_xdata(), predicted11.get_ydata())  #EMA predicted
 plt11.plot(digi_line11.get_xdata(), digi_line11.get_ydata())  #Proactive Blind Killing
 plt2.plot(cost_line11.get_xdata(), cost_line11.get_ydata())  #Proactive Blind Killing Cost
 
@@ -414,5 +489,5 @@ plt4.legend(["Raw Data", "Reactive -Smart Killing"], loc='upper right')
 
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
-plt2.legend(["Reactive-Blind Killing","Proactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='lower right')
+plt2.legend(["Reactive-Blind Killing","Stratos-Blind Killing ","Stratos-Smart Killing","Proactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='upper left')
 plt.show()

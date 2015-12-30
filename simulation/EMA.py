@@ -10,4 +10,5 @@ def ema(values, window):
     #print(a)
     return a;
 
-#a = ema ([1,5,7,21,19,15], 3)
+a = ema ([1,5,7,21,19,15], 3)
+print(a)
