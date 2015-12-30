@@ -215,6 +215,27 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             lineAllocate = Line2D(digixdata, digiydata) #requirement
             digi_line  = Line2D(digixdata, actualydata) #actual
 
+    elif(provider == "default" and prediction_type == "proactive"):
+        digix, digiy = CostModel.run(actualFileName)
+        for i in range(0, len(digix)):
+            new_vm_count = digiy[i]
+            if i != 0:
+                vm_change = int(math.ceil(digiy[i] - len([i for x in listVM if x.endTime == -1])))
+            else :
+                vm_change = int(math.ceil(digiy[0] - len([i for x in listVM if x.endTime == -1])))
+
+            if vm_change > 0:
+                vm_count += startVMs(listVM, vm_change, digix[i])
+            elif vm_change < 0:
+                vm_count -= removeVMs(listVM, -vm_change, provider, digix[i])
+            modely_coord_actual.append(vm_count)
+            scaleCSV.seek(0, 2)
+            scaleCSV.write("%.3f,%.3f\n" %(i, vm_count*VM_parameter_unit))
+
+        digixdata = np.array(digix)
+        digiydata = np.array(digiy)
+        lineAllocate = Line2D(digixdata, digiydata) #requirement
+        digi_line  = Line2D(digixdata, modely_coord_actual) #actual
 
     elif(provider == "aws" and prediction_type == "proactive"):
         digix, digiy = CostModel.run(actualFileName)
@@ -298,14 +319,15 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
 M3_MEDIUM_HOURLY_PRICE = 0.067
-REATIVE_THREASHOLDE =  0.8
+REACTIVE_THREASHOLD =  0.8
 PROACTIVE_THRESHOLD = 1
 MIN_VM =2
 VM_PARAM_UNIT = 4
 
-rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
+#rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
-f, (plt1, plt3, plt4) = plt.subplots(1,3,sharey=True)
+f0, (plt1,plt4) = plt.subplots(2,1,sharey=True)
+f1, (plt11,plt3 ) = plt.subplots(2,1,sharey=True)
 f2, (func_plot, plt2) = plt.subplots(1,2)
 
 violation_x = array.array('d')
@@ -317,18 +339,29 @@ for n in drange(0, 100, 0.05):
 
 func_plot.plot(violation_x, violation_y)
 
+#filename = "../datasets/predicted_static/predicted.csv"
+filename = "mempredicted.csv"
+rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
+
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())  #Reactive Blind Killing Cost
 
-rowdata2, predicted2, digi_line2,cost_line2 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "aws", "proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/optimized_cost.csv")
+rowdata11, predicted11, digi_line11,cost_line11 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "default","proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
+
+plt11.plot(rowdata11.get_xdata(), rowdata11.get_ydata(), "*") #rowdata
+plt11.plot(predicted11.get_xdata(), predicted11.get_ydata())  #EMA predicted
+plt11.plot(digi_line11.get_xdata(), digi_line11.get_ydata())  #Proactive Blind Killing
+plt2.plot(cost_line11.get_xdata(), cost_line11.get_ydata())  #Proactive Blind Killing Cost
+
+rowdata2, predicted2, digi_line2,cost_line2 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "aws", "proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/proactive_scale.csv", "data/optimized_cost.csv")
 
 plt3.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt3.plot(digi_line2.get_xdata(),digi_line2.get_ydata()) #Proactive Smart Killing
 plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata()) #Proactive Smart Killing cost
 
-rowdata3, predicted3, digi_line3,cost_line3 = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "aws", "reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/proactive_scale.csv", "data/normal2_cost.csv")
+rowdata3, predicted3, digi_line3,cost_line3 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "aws", "reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/proactive_scale.csv", "data/normal2_cost.csv")
 
 plt4.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt4.plot(digi_line3.get_xdata(),digi_line3.get_ydata()) #Reactive Smart Killing
@@ -365,17 +398,21 @@ plt2.plot(total_costx,total_costy)
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
-plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing","Reactive -Smart Killing" ], loc='lower right')
+plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing" ], loc='upper right')
+
+plt11.set_xlabel("Time/minutes")
+plt11.set_ylabel("VM_Units")
+plt11.legend(["Raw Data", "Predicted", "Proactive-Blind Killing" ], loc='upper right')
 
 plt3.set_xlabel("Time/minutes")
 plt3.set_ylabel("VM_Units")
-plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='lower right')
+plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='upper right')
 
 plt4.set_xlabel("Time/minutes")
 plt4.set_ylabel("VM_Units")
-plt4.legend(["Raw Data", "Reactive -Smart Killing"], loc='lower right')
+plt4.legend(["Raw Data", "Reactive -Smart Killing"], loc='upper right')
 
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
-plt2.legend(["Reactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='lower right')
+plt2.legend(["Reactive-Blind Killing","Proactive-Blind Killing","Proactive-Smart Killing", "Reactive-Smart Killing", "Proactive-Smart Killing-Total" ], loc='lower right')
 plt.show()

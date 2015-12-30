@@ -83,7 +83,3 @@ def plotWorkload(filename, plotArea,workloadType):
 
 # 0 - CPU, 1 - Memory, 2 - RIF
 plot("data/actual.csv","data/normal_cost.csv", "data/optimized_cost.csv",2)
-
-
-
-

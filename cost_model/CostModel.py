@@ -2,6 +2,8 @@ __author__ = 'bhash90'
 
 import numpy as np
 import array
+import EMA
+from matplotlib.lines import Line2D
 
 def violation_precentage(machine_count,machine_unit_power, predicted_arr ):
     tot_power = machine_count * machine_unit_power
@@ -12,10 +14,34 @@ def violation_precentage(machine_count,machine_unit_power, predicted_arr ):
     violation = (float)(count) / (float)(len(predicted_arr))
     return violation*100
 
+def getValue(line2d, x):
+    xvalues = line2d.get_xdata()
+    yvalues = line2d.get_ydata()
+    idx = np.where(xvalues == xvalues[x])
+    return yvalues[idx[0]]
+
+def drange(x, y, jump):
+    while x < y:
+        yield x
+        x += jump
+
+
 def minToMaxIteration(minVM, maxVM, currentVM, machine_unit_power,machine_unit_price, predicted_arr, time_gap ):
-    predicted_arr2 = predicted_arr[np.logical_not(np.isnan(predicted_arr))]
+    yvalueset = []
+    predicted_arr_temp = predicted_arr[np.logical_not(np.isnan(predicted_arr))]
+    line2d= Line2D(np.arange(1,len(predicted_arr_temp),1), EMA.ema(predicted_arr_temp ,3))
+    #print("Max : %s" %max(line2d.get_xdata()))
+    sampling_distance = 0.2
+    for i in drange(min(line2d.get_xdata()), max(line2d.get_xdata()), sampling_distance):
+        #print(i-uptime)
+        z = getValue(line2d, i)
+        yvalueset.append(z[0])
+
+    predicted_arr2 = np.array(yvalueset)
+    #print("yvaluse : %s" %yvalueset)
     tot_cost = 999999
-    time = time_gap * len(predicted_arr2)/60.0
+    #print(predicted_arr2)
+    time = sampling_distance * len(predicted_arr2)/60.0
 
     # print(time)
     index =   minVM
@@ -46,7 +72,7 @@ def SLA_func(precenage):
     elif precenage < 5 and precenage < 10:
         violation_cost = 0.5
     else : #modified part
-        violation_cost = pow(2,precenage/30)
+        violation_cost = pow(2,precenage/20)
 # violation_cost = precenage/10.0
     #print(violation_cost)
     return  violation_cost

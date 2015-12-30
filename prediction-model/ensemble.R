@@ -144,6 +144,8 @@ prediction=function (tsdata, doView=TRUE, horizon=1) {
         }
       }
     }
+    alpha = 1;
+    beta = 0;
     ensemblePredicted[i+1]=((alpha*arimaPredicted[i+1]+beta*nnetPredicted[i+1])/(alpha+beta))
     currentPredicted[i+1]= getMotionPrediction(tseries, 1)
     
@@ -199,9 +201,9 @@ generatePredictions = function() {
   horizon = 15
   
   start = 1
-  limit = 200
-  infile = "../datasets/lajan/4-5/1000/cpu"
-  outdir = "../simulation/data/"
+  limit = 1000
+  infile = "../datasets/companyx/mem1_47h.log"
+  outdir = "../simulation/mem"
   datafile = paste(outdir, "actual.csv", sep="")
   outfile = paste(outdir, "predicted.csv", sep="")
   
