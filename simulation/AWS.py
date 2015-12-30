@@ -322,7 +322,7 @@ M3_MEDIUM_HOURLY_PRICE = 0.3
 REACTIVE_THREASHOLD =  0.8
 PROACTIVE_THRESHOLD = 1
 MIN_VM =2
-VM_PARAM_UNIT = 16
+VM_PARAM_UNIT = 4
 
 #rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
@@ -371,7 +371,7 @@ tot_count = 0.0
 vio_count = 0.0
 total_costx = array.array('d')
 total_costy = array.array('d')
-for m in rowdata.get_xdata()-2:
+for m in drange(min(rowdata.get_xdata()), max( rowdata.get_xdata())-1, 0.2):
 
     tot_count += 1
     row_value     = getValue(rowdata, m)
