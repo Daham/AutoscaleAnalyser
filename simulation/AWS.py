@@ -340,7 +340,7 @@ for n in drange(0, 100, 0.05):
 func_plot.plot(violation_x, violation_y)
 
 #filename = "../datasets/predicted_static/predicted.csv"
-filename = "mempredicted.csv"
+filename = "data2predicted.csv"
 rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
 
 plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
