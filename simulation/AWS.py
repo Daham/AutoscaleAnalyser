@@ -44,7 +44,7 @@ def startVMs(listVM, count, i):
 #random remove implemented. Check the provider and implement as a switch
 def removeVMs(listVM, count, provider, now):
     AWS_MIN_MINUTES_BEFORE_KILL = 50	#don't kill if less than this # minutes of last hour is spent
-    AWS_MAX_MINUTES_BEFORE_KILL = 60	#don't kill if more than this # minutes of last hour is spent
+    AWS_MAX_MINUTES_BEFORE_KILL = 57	#don't kill if more than this # minutes of last hour is spent
     
     killed = 0
     candidates = []
@@ -86,8 +86,13 @@ def calculateAWSCost(listVM, givenTime, price_per_hour):
                 cost += billing_hours * price_per_hour
                 ##print("cost: %s at %s and %s init %s" % (cost,givenTime,vm.endTime, vm.initTime))
             else:
-                billing_hours = int(math.ceil((vm.endTime - vm.initTime)/60.0))
-                cost += billing_hours * price_per_hour
+                billing_cycle_minutes = (vm.endTime - vm.initTime)% 60
+                if billing_cycle_minutes< 57.0:
+                    billing_hours = int(math.ceil((vm.endTime - vm.initTime)/ 60))
+                    cost += billing_hours * price_per_hour
+                else: # blind killing after 57 minutes will be charged for next hour
+                    billing_hours = int(math.ceil((vm.endTime - vm.initTime) /60 ))
+                    cost += (billing_hours +1) * price_per_hour
                 #print("cost: %s at %s" % (cost,givenTime))
     return cost
 
@@ -150,7 +155,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     line2d = Line2D(xdata, EMA.ema(ydata ,3))
 
     #plot stratos
-    line2d_stratos = Line2D(xdata[2:len(xdata)]-3,Stratos.Stratos(ydata))
+    line2d_stratos = Line2D(xdata[2:len(xdata)]-3,Stratos.Stratos(ydata)) #-3 to syn digi graph
 
     #Initialize min_VMs
     #VM = [23,42] #Todo fill with randoms
@@ -192,7 +197,9 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         digi_line  = Line2D(digixdata, actualydata) #actual
 
     elif(provider == "default" and prediction_type == "stratos"):
-        for i in drange(uptime+2, max(xdata) - shift + uptime -4, 0.1):
+        request_count = 0
+        sampling_distance = 0.1
+        for i in drange(uptime, max(xdata) - shift + uptime -4, sampling_distance):
             print(i)
             line2d = line2d_stratos
             z = getValue(line2d_stratos, i - uptime)
@@ -205,8 +212,12 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             vm_change = int(math.ceil(new_vm_count - vm_count))
             if vm_change > 0:
                 vm_count += startVMs(listVM, vm_change, i)
+                request_count = 0
             elif vm_change < 0:
-                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                request_count += 1
+                if request_count > 2.0/sampling_distance :
+                    vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                    request_count = 0
 
             digix_cordinates.append(i)
             digiy_cordinates.append(new_vm_count)
@@ -220,6 +231,8 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         digi_line  = Line2D(digixdata, actualydata) #actual
 
     elif(provider == "aws" and prediction_type == "stratos"):
+        request_count = 0
+        sampling_distance = 0.1
         for i in drange(uptime, max(xdata) - shift + uptime -4, 0.1):
             print(i)
             line2d = line2d_stratos
@@ -233,8 +246,11 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             vm_change = int(math.ceil(new_vm_count - vm_count))
             if vm_change > 0:
                 vm_count += startVMs(listVM, vm_change, i)
+                request_count = 0
             elif vm_change < 0:
-                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                request_count += 1
+                if request_count > 2.0/sampling_distance:
+                    vm_count -= removeVMs(listVM, -vm_change, provider, i)
 
             digix_cordinates.append(i)
             digiy_cordinates.append(new_vm_count)
