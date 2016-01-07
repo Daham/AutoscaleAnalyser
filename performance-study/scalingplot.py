@@ -39,6 +39,13 @@ ts_init = 0
 TIMESCALE = 60	# 60 => show in minutes
 FUTURE = 60/TIMESCALE	# prediction interval (s)
 
+# as percentages that can be handled by each machine
+HEALTH_SCALE_FACTOR = 100
+RIF_SCALE_FACTOR = 100		# TODO need a reasonable value!
+
+SCALE_LOG_REL_PATH = "/repository/logs/scale.log"
+DEFAULT_CLUSTER_FILTER = "php"
+
 # parse timestamp
 def getTS(timestr):
 	return time.mktime(time.strptime(timestr, '[%Y-%m-%d %H:%M:%S,%f]'))/TIMESCALE
@@ -47,17 +54,26 @@ def getTS(timestr):
 def recordInstances(ts, scaleList=None):
 	for metric in ['la', 'rif', 'mc']:
 		allocation[metric].append(inst_count)
-		utilization[metric].append(s[metric]*inst_count/(1 if metric == 'rif' else 100))
+		utilization[metric].append(s[metric]*inst_count/(RIF_SCALE_FACTOR if metric == 'rif' else HEALTH_SCALE_FACTOR))
 		t_allocation[metric].append(ts)
 		t_utilization[metric].append(ts)
-		if scaleList is not None and line.find(metric):
-			scaleList[metric].append(ts)
+		if scaleList is not None and line.find(metric) > 0:
+			scaleCount = len(scaleList[metric])
+			# add timestamp, avoiding overlapping requests
+			scaleList[metric].append(ts + (0.3 if scaleCount > 0 and scaleList[metric][scaleCount - 1] == ts else 0))
 
-f = open(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("CARBON_HOME") + "/repository/logs/scale.log", "r")
+print "\nUsage:\tpython mock.py log_file_path cluster_filter"
+print "\tDefault log_file_path:\t$CARBON_HOME" + SCALE_LOG_REL_PATH
+print "\tDefault cluster_filter:\t*" + DEFAULT_CLUSTER_FILTER + "*\n"
+
+# fall back to default cluster ID if not provided
+clusterId = DEFAULT_CLUSTER_FILTER if len(sys.argv) < 3 else sys.argv[2]
+
+f = open(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("CARBON_HOME") + SCALE_LOG_REL_PATH, "r")
 for line in f:
 	try:
 		# irrelevant?
-		if line.find('HealthStat') < 0:
+		if line.find('HealthStat') < 0 or line.find(clusterId) < 0:	# ignore MySQL stats
 			continue
 
 		tok = line.split(' ')
@@ -78,9 +94,12 @@ for line in f:
 				t_actual[metric].append(ts)
 			
 				# prediction
-				t_pred[metric].append(ts + FUTURE)
-				last_pred[metric] = s[metric] + u[metric]*t + 0.5*a[metric]*t*t
+				if len(tok) > 9:
+					last_pred[metric] = float(tok[9])
+				else:
+					last_pred[metric] = s[metric] + u[metric]*t + 0.5*a[metric]*t*t
 				pred[metric].append(last_pred[metric])
+				t_pred[metric].append(ts + FUTURE)
 
 				# latest entries, for next prediction
 				s[metric] = avg
@@ -93,11 +112,11 @@ for line in f:
 				recordInstances(ts)
 
 			elif tok[3] == '+':	# scale-up event
-				inst_count += 1
+				#inst_count += 1
 				recordInstances(ts, t_scaleups)
 
 			elif tok[3] == '-':	# scale-down event
-				inst_count -= 1
+				#inst_count -= 1
 				recordInstances(ts, t_scaledowns)
 
 	except BaseException as e:
@@ -113,22 +132,23 @@ for metric in ['la', 'rif', 'mc']:
 	#plt.plot(np.array(t_actual[metric]), np.array(actual[metric]))
 	#plt.plot(np.array(t_pred[metric]), np.array(pred[metric]))
 	
-	# VM allocation and actual utilization
-	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue")
-	plt.plot(np.array(t_utilization[metric]), np.array(utilization[metric]), "*", color="black")
-
-	plt.title(metric)
-	plt.xlabel("Time | s")
-	plt.ylabel(metric)
-	plt.legend(["Allocation", "Utilization"], loc='upper right')
+	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue", label="allocation")
+	plt.plot(np.array(t_utilization[metric]), np.array(utilization[metric]), color="black", label="utilization")
 	
 	# scale up/down timestamps
+	scaleLabeled = False
 	for t in t_scaleups[metric]:
-		plt.axvline(t, color="red")
+		plt.axvline(t, ls=":", color="red", label=None if scaleLabeled else "scale up")
+		scaleLabeled = True	# add label only to first line
+
+	scaleLabeled = False
 	for t in t_scaledowns[metric]:
-		plt.axvline(t, color="green")
-	
-	# re-plot allocation to overlay scaling lines
-	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue")
+		plt.axvline(t, ls=":", color="green", label=None if scaleLabeled else "scale down")
+		scaleLabeled = True
+
+	plt.title(metric)
+	plt.xlabel("time | " + str(TIMESCALE) + "s")
+	plt.ylabel("machine units")
+	plt.legend(loc="best")
 
 plt.show()
