@@ -6,6 +6,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
+from itertools import izip
 
 # latest datasets
 s = {'la': 0, 'rif': 0, 'mc': 0}
@@ -77,10 +78,12 @@ for line in f:
 			continue
 
 		tok = line.split(' ')
-		ts = getTS(tok[0] + ' ' + tok[1]) - ts_init
+		ts = getTS(tok[0] + ' ' + tok[1])
+
 		# start time
 		if ts_init == 0:
 			ts_init = ts
+		ts -= ts_init
 
 		if tok[2] == 'HealthStatEvent':
 			pass	# not used currently
@@ -123,6 +126,22 @@ for line in f:
 		print(e)
 		print(line)
 		break
+
+# write results to files
+for metric in ['la', 'rif', 'mc']:
+	out = open(metric + ".log", "w")
+
+	stats = actual[metric]
+	t_stats = t_actual[metric]
+	counts = allocation[metric]
+	t_counts = t_allocation[metric]
+
+	k = 0
+	for i, t in izip(stats, t_stats):
+		while t_counts[k] < t:
+			k += 1
+		out.write(str(i) + "," + str(counts[k]) + "\n")
+	out.close()
 
 # plot separate graphs
 for metric in ['la', 'rif', 'mc']:
