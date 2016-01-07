@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executionPlan name="PredictorOfHealthRequest" statistics="disable"
+  trace="disable" xmlns="http://wso2.org/carbon/eventprocessor">
+  <description/>
+  <siddhiConfiguration>
+    <property name="siddhi.persistence.snapshot.time.interval.minutes">0</property>
+    <property name="siddhi.enable.distributed.processing">false</property>
+  </siddhiConfiguration>
+  <importedStreams>
+    <stream as="health_predictor_request"
+      name="cartridge_agent_health_stats" version="1.0.0"/>
+  </importedStreams>
+  <queryExpressions><![CDATA[	from health_predictor_request
+		select member_id, cluster_id, cluster_instance_id, network_partition_id, health_description, value,
+		stratos:concat(cluster_id, '-' ,cluster_instance_id) as health_predictor_cluster_network
+		insert into health_predictor_concat;
+        		
+    	from health_predictor_concat
+        select  cluster_id, cluster_instance_id, network_partition_id, health_predictor_cluster_network, health_description, value, "" as predicted_values
+        insert into health_predictor_concat_temp;
+        
+	define partition health_predictor_cluster_partition  by health_predictor_concat_temp.health_predictor_cluster_network;
+	
+	from health_predictor_concat_temp [health_description == 'memory_consumption']
+		#window.stratos:workloadPrediction(1 min, value,predicted_values)
+		select cluster_id, cluster_instance_id, network_partition_id,value, predicted_values
+		output snapshot every 1 min
+		insert into predicted_memory_consumption_stats
+		partition by health_predictor_cluster_partition;				
+	
+	from health_predictor_concat_temp [health_description == 'load_average']
+		#window.stratos:workloadPrediction(1 min, value,predicted_values)
+		select cluster_id, cluster_instance_id, network_partition_id,value, predicted_values
+		output snapshot every 1 min
+		insert into predicted_load_average_stats
+		partition by health_predictor_cluster_partition;
+		
+		
+	from health_predictor_concat
+	    select  member_id, cluster_id, cluster_instance_id, network_partition_id, health_description, value, "" as predicted_values
+        insert into member_health_predictor_concat_temp;
+		
+	define partition health_predictor_member_partition by member_health_predictor_concat_temp.member_id;
+	
+	from member_health_predictor_concat_temp [health_description == 'memory_consumption']
+		#window.stratos:workloadPrediction(1 min, value, predicted_values)
+		select member_id, cluster_id, cluster_instance_id, network_partition_id, value, predicted_values
+		output snapshot every 1 min
+		insert into member_predicted_memory_consumption_stats
+		partition by health_predictor_member_partition;
+		
+	from member_health_predictor_concat_temp [health_description == 'load_average']
+		#window.stratos:workloadPrediction(1 min, value, predicted_values)
+		select member_id, cluster_id, cluster_instance_id, network_partition_id, value ,predicted_values
+		output snapshot every 1 min
+		insert into member_predictor_load_average_stats
+		partition by health_predictor_member_partition;
+		
+		]]></queryExpressions>
+  <exportedStreams>
+    <stream name="predicted_load_average_stats"
+      valueOf="predicted_load_average_stats" version="1.0.0"/>
+    <stream name="member_predicted_memory_consumption_stats"
+      valueOf="member_predicted_memory_consumption_stats" version="1.0.0"/>
+    <stream name="member_predicted_load_average_stats"
+      valueOf="member_predictor_load_average_stats" version="1.0.0"/>
+  </exportedStreams>
+</executionPlan>

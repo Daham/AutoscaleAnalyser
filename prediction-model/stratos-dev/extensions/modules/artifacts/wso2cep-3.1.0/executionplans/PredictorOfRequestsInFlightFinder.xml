@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executionPlan name="PredictorOfRequestsInFlight" statistics="disable"
+  trace="disable" xmlns="http://wso2.org/carbon/eventprocessor">
+  <description/>
+  <siddhiConfiguration>
+    <property name="siddhi.persistence.snapshot.time.interval.minutes">0</property>
+    <property name="siddhi.enable.distributed.processing">false</property>
+  </siddhiConfiguration>
+  <importedStreams>
+    <stream as="predictor_rif" name="in_flight_requests" version="1.0.0"/>
+  </importedStreams>
+  <queryExpressions><![CDATA[	from predictor_rif
+		select cluster_id, cluster_instance_id, network_partition_id, in_flight_request_count,
+		stratos:concat(cluster_id, '-' ,network_partition_id) as rif_predictor_cluster_network
+		insert into rif_predictor_concat;
+	from rif_predictor_concat
+	    select cluster_id, cluster_instance_id, network_partition_id, in_flight_request_count, rif_predictor_cluster_network, "" as predicted_values
+	    insert into rif_predictor_concat_temp;
+		
+	define partition rif_predictor_cluster_partition by rif_predictor_concat_temp.rif_predictor_cluster_network;
+
+	from rif_predictor_concat_temp
+	    #window.stratos:workloadPrediction(1 min, in_flight_request_count,predicted_values)
+		select cluster_id, cluster_instance_id, network_partition_id,in_flight_request_count as count, predicted_values
+		output snapshot every 1 min
+		insert into predicted_in_flight_requests_stat
+		partition by rif_predictor_cluster_partition;
+  
+                    ]]></queryExpressions>
+  <exportedStreams>
+    <stream name="predicted_in_flight_requests_stat"
+      valueOf="predicted_in_flight_requests_stat" version="1.0.0"/>
+  </exportedStreams>
+</executionPlan>

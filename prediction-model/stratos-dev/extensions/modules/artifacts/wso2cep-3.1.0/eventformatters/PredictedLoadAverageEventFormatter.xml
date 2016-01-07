@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<eventFormatter name="PredictedLoadAverageEventFormatter"
+  statistics="disable" trace="disable" xmlns="http://wso2.org/carbon/eventformatter">
+  <from streamName="predicted_load_average_stats" version="1.0.0"/>
+  <mapping customMapping="enable" type="json">
+    <inline>{"org.apache.stratos.messaging.event.health.stat.PredictedLoadAverageEvent":{"message":{"clusterId":"{{cluster_id}}","clusterInstanceId":"{{cluster_instance_id}}","networkPartitionId":"{{network_partition_id}}","value":"{{value}}","predictedValues":"{{predicted_values}}"}}}
+</inline>
+  </mapping>
+  <to eventAdaptorName="JMSOutputAdaptor" eventAdaptorType="jms">
+    <property name="transport.jms.Destination">summarized-health-stats</property>
+  </to>
+</eventFormatter>
