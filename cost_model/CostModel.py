@@ -102,7 +102,7 @@ def run(filename):
         MIN_VM = 2
         MAX_VM = 100
         MACHINE_UNIT_POWER = 4
-        MACHINE_UNIT_PRICE = 0.3
+        MACHINE_UNIT_PRICE = 0.067
         TIME_GAP_IN_PREDICTION = 1
         CURRENT_VM = prev_index
         index, violation = minToMaxIteration(MIN_VM,MAX_VM,CURRENT_VM, MACHINE_UNIT_POWER, MACHINE_UNIT_PRICE, arr[1:len(arr)], TIME_GAP_IN_PREDICTION)

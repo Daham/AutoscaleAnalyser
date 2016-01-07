@@ -44,7 +44,7 @@ def startVMs(listVM, count, i):
 #random remove implemented. Check the provider and implement as a switch
 def removeVMs(listVM, count, provider, now):
     AWS_MIN_MINUTES_BEFORE_KILL = 50	#don't kill if less than this # minutes of last hour is spent
-    AWS_MAX_MINUTES_BEFORE_KILL = 60	#don't kill if more than this # minutes of last hour is spent
+    AWS_MAX_MINUTES_BEFORE_KILL = 57	#don't kill if more than this # minutes of last hour is spent
     
     killed = 0
     candidates = []
@@ -86,8 +86,13 @@ def calculateAWSCost(listVM, givenTime, price_per_hour):
                 cost += billing_hours * price_per_hour
                 ##print("cost: %s at %s and %s init %s" % (cost,givenTime,vm.endTime, vm.initTime))
             else:
-                billing_hours = int(math.ceil((vm.endTime - vm.initTime)/60.0))
-                cost += billing_hours * price_per_hour
+                billing_cycle_minutes = (vm.endTime - vm.initTime)% 60
+                if billing_cycle_minutes< 57.0:
+                    billing_hours = int(math.ceil((vm.endTime - vm.initTime)/ 60))
+                    cost += billing_hours * price_per_hour
+                else: # blind killing after 57 minutes will be charged for next hour
+                    billing_hours = int(math.ceil((vm.endTime - vm.initTime) /60 ))
+                    cost += (billing_hours +1) * price_per_hour
                 #print("cost: %s at %s" % (cost,givenTime))
     return cost
 
@@ -127,12 +132,9 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     reader = csv.reader(ifile)
     rownum = 0
     for row in reader:
-        if rownum == 0:
-            rownum += 1
-        else:
-            x_coordinates.append(float(row[0]))
-            y_coordinates.append(float(row[1])/(VM_parameter_unit))
-        rownum += 1
+      x_coordinates.append(float(row[0]))
+      y_coordinates.append(float(row[1])/(VM_parameter_unit))
+      rownum += 1
     ifile.close()
     ##print(x_coordinates)
     ##print(y_coordinates)
@@ -150,7 +152,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
     line2d = Line2D(xdata, EMA.ema(ydata ,3))
 
     #plot stratos
-    line2d_stratos = Line2D(xdata[2:len(xdata)]-3,Stratos.Stratos(ydata))
+    line2d_stratos = Line2D(xdata[2:len(xdata)]+1,Stratos.Stratos(ydata))
 
     #Initialize min_VMs
     #VM = [23,42] #Todo fill with randoms
@@ -192,7 +194,9 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         digi_line  = Line2D(digixdata, actualydata) #actual
 
     elif(provider == "default" and prediction_type == "stratos"):
-        for i in drange(uptime+2, max(xdata) - shift + uptime -4, 0.1):
+        request_count = 0
+        sampling_distance = 0.1
+        for i in drange(uptime, max(xdata) - shift + uptime -4, sampling_distance):
             print(i)
             line2d = line2d_stratos
             z = getValue(line2d_stratos, i - uptime)
@@ -205,8 +209,12 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             vm_change = int(math.ceil(new_vm_count - vm_count))
             if vm_change > 0:
                 vm_count += startVMs(listVM, vm_change, i)
+                request_count = 0
             elif vm_change < 0:
-                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                request_count += 1
+                if request_count > 2.0/sampling_distance :
+                    vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                    request_count = 0
 
             digix_cordinates.append(i)
             digiy_cordinates.append(new_vm_count)
@@ -217,9 +225,11 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         digiydata = np.array(digiy_cordinates)
         actualydata = np.array(digiy_coord_actual)
         lineAllocate = Line2D(digixdata, digiydata) #requirement
-        digi_line  = Line2D(digixdata, actualydata) #actual
+        digi_line  = Line2D(digixdata+4, actualydata) #actual
 
     elif(provider == "aws" and prediction_type == "stratos"):
+        request_count = 0
+        sampling_distance = 0.1
         for i in drange(uptime, max(xdata) - shift + uptime -4, 0.1):
             print(i)
             line2d = line2d_stratos
@@ -233,8 +243,11 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
             vm_change = int(math.ceil(new_vm_count - vm_count))
             if vm_change > 0:
                 vm_count += startVMs(listVM, vm_change, i)
+                request_count = 0
             elif vm_change < 0:
-                vm_count -= removeVMs(listVM, -vm_change, provider, i)
+                request_count += 1
+                if request_count > 2.0/sampling_distance:
+                    vm_count -= removeVMs(listVM, -vm_change, provider, i)
 
             digix_cordinates.append(i)
             digiy_cordinates.append(new_vm_count)
@@ -245,7 +258,7 @@ def run(VM_parameter_unit, threshold_percentage, uptime, min_VM, shift, provider
         digiydata = np.array(digiy_cordinates)
         actualydata = np.array(digiy_coord_actual)
         lineAllocate = Line2D(digixdata, digiydata) #requirement
-        digi_line  = Line2D(digixdata, actualydata) #actual
+        digi_line  = Line2D(digixdata+4, actualydata) #actual
 
     elif(provider == "aws" and prediction_type == "reactive"):
             for i in drange(uptime, max(xdata) - shift + uptime- 1, 0.1):
@@ -377,7 +390,7 @@ def calculateViolation(predictLine, allocateline, startTime ,endTime):
 # virtual machine unit, threshold, uptime, min, shift, provider, per hour cost, initial data[]
 #run(4, 100, 0, 0, 0, "aws", 6, [0,0], "data/actual.csv")
 
-M3_MEDIUM_HOURLY_PRICE = 0.3
+M3_MEDIUM_HOURLY_PRICE = 0.067
 REACTIVE_THREASHOLD =  0.8
 PROACTIVE_THRESHOLD = 1
 MIN_VM =2
@@ -388,7 +401,8 @@ VM_PARAM_UNIT = 4
 f0, (plt1,plt4) = plt.subplots(2,1,sharey=True)
 f1, (plt11,plt3 ) = plt.subplots(2,1,sharey=True)
 f_stratos, (plt_str_1, plt_str_2 ) = plt.subplots(2,1,sharey=True)
-f2, (func_plot, plt2) = plt.subplots(1,2)
+f2, (func_plot) = plt.subplots(1,1)
+f3, (plt2) = plt.subplots(1,1)
 
 violation_x = array.array('d')
 violation_y = array.array('d')
@@ -438,7 +452,8 @@ plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata()) #Proactive Smart Killin
 
 rowdata3, predicted3, digi_line3,cost_line3 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "aws", "reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/proactive_scale.csv", "data/normal2_cost.csv")
 
-plt4.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+plt4.plot(rowdata3.get_xdata(), rowdata3.get_ydata(), "*") #rowdata
+plt4.plot(predicted3.get_xdata(), predicted3.get_ydata())  #EMA predicted
 plt4.plot(digi_line3.get_xdata(),digi_line3.get_ydata()) #Reactive Smart Killing
 plt2.plot(cost_line3.get_xdata(),cost_line3.get_ydata()) #Reactive Smart Killing Cost
 
@@ -475,9 +490,17 @@ plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
 plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing" ], loc='upper right')
 
+plt_str_1.set_xlabel("Time/minutes")
+plt_str_1.set_ylabel("VM_Units")
+plt_str_1.legend(["Raw Data", "Stratos-Predicted", "Stratos-Blind Killing" ], loc='upper right')
+
+plt_str_2.set_xlabel("Time/minutes")
+plt_str_2.set_ylabel("VM_Units")
+plt_str_2.legend(["Raw Data", "Stratos-Predicted", "Stratos-Smart Killing" ], loc='upper right')
+
 plt11.set_xlabel("Time/minutes")
 plt11.set_ylabel("VM_Units")
-plt11.legend(["Raw Data", "Predicted", "Proactive-Blind Killing" ], loc='upper right')
+plt11.legend(["Raw Data", "Proactive-Blind Killing" ], loc='upper right')
 
 plt3.set_xlabel("Time/minutes")
 plt3.set_ylabel("VM_Units")
@@ -485,7 +508,10 @@ plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='upper right')
 
 plt4.set_xlabel("Time/minutes")
 plt4.set_ylabel("VM_Units")
-plt4.legend(["Raw Data", "Reactive -Smart Killing"], loc='upper right')
+plt4.legend(["Raw Data", "Predicted" ,"Reactive -Smart Killing"], loc='upper right')
+
+func_plot.set_xlabel("Violated Precentage")
+func_plot.set_ylabel("Penalty Factor/ VM_Units")
 
 plt2.set_xlabel("Time/minutes")
 plt2.set_ylabel("Cost")
