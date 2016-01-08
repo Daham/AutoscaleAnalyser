@@ -12,6 +12,8 @@ from itertools import izip
 # --- based on health stat events
 event_avgs = {'la': [], 'rif': [], 'mc': []}
 t_event_avgs = {'la': [], 'rif': [], 'mc': []}
+event_pred = {'la': [], 'rif': [], 'mc': []}
+t_event_pred = {'la': [], 'rif': [], 'mc': []}
 
 # --- based on autoscaler iterations
 # latest datasets
@@ -92,10 +94,15 @@ for line in f:
 		ts -= ts_init
 
 		if tok[2] == 'HealthStatEvent':
-			if tok[4] == 's' and tok[3] in METRIC_NAMES:	# average event
+			if tok[3] in METRIC_NAMES:	# average event
 				metric = tok[3]
-				event_avgs[metric].append(float(tok[7]))
-				t_event_avgs[metric].append(ts)
+				value = float(tok[7])
+				if tok[4] == 's':
+					event_avgs[metric].append(value)
+					t_event_avgs[metric].append(ts)
+				elif tok[4] == 'pred':
+					event_pred[metric].append(value)
+					t_event_pred[metric].append(ts)
 
 		elif tok[2] == 'HealthStatProc':
 			if tok[3] in METRIC_NAMES:
@@ -158,7 +165,7 @@ for metric in METRIC_NAMES:
 	# health stats: actual and predicted
 	plt.figure()
 	plt.plot(np.array(t_event_avgs[metric]), np.array(event_avgs[metric]), label="actual")
-	plt.plot(np.array(t_pred[metric]), np.array(pred[metric]), label="predicted")
+	plt.plot(np.array(t_event_pred[metric]), np.array(event_pred[metric]), label="predicted")
 	plt.title(metric)
 	plt.xlabel("time | " + str(TIMESCALE) + "s")
 	plt.ylabel("value")
