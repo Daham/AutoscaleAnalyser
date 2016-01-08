@@ -8,6 +8,12 @@ import numpy as np
 from matplotlib.lines import Line2D
 from itertools import izip
 
+
+# --- based on health stat events
+event_avgs = {'la': [], 'rif': [], 'mc': []}
+t_event_avgs = {'la': [], 'rif': [], 'mc': []}
+
+# --- based on autoscaler iterations
 # latest datasets
 s = {'la': 0, 'rif': 0, 'mc': 0}
 u = {'la': 0, 'rif': 0, 'mc': 0}
@@ -15,7 +21,6 @@ a = {'la': 0, 'rif': 0, 'mc': 0}
 
 # last prediction for each metric
 last_pred = {'la': 0, 'rif': 0, 'mc': 0}
-
 # y-axis plot points
 actual = {'la': [], 'rif': [], 'mc': []}
 pred = {'la': [], 'rif': [], 'mc': []}
@@ -29,7 +34,7 @@ t_scaledowns = {'la': [], 'rif': [], 'mc': []}
 # last known instance count
 inst_count = 0
 
-# resource stats (calculated)
+# machine stats (calculated)
 utilization = {'la': [], 'rif': [], 'mc': []}
 allocation = {'la': [], 'rif': [], 'mc': []}
 t_utilization = {'la': [], 'rif': [], 'mc': []}
@@ -46,6 +51,7 @@ RIF_SCALE_FACTOR = 100		# TODO need a reasonable value!
 
 SCALE_LOG_REL_PATH = "/repository/logs/scale.log"
 DEFAULT_CLUSTER_FILTER = "php"
+METRIC_NAMES = ['la', 'mc', 'rif']
 
 # parse timestamp
 def getTS(timestr):
@@ -53,7 +59,7 @@ def getTS(timestr):
 
 # record resource utilization and instance up/down events
 def recordInstances(ts, scaleList=None):
-	for metric in ['la', 'rif', 'mc']:
+	for metric in METRIC_NAMES:
 		allocation[metric].append(inst_count)
 		utilization[metric].append(s[metric]*inst_count/(RIF_SCALE_FACTOR if metric == 'rif' else HEALTH_SCALE_FACTOR))
 		t_allocation[metric].append(ts)
@@ -74,7 +80,7 @@ f = open(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("CARBON_HOME") + S
 for line in f:
 	try:
 		# irrelevant?
-		if line.find('HealthStat') < 0 or line.find(clusterId) < 0:	# ignore MySQL stats
+		if line.find('HealthStat') < 0 or line.find(clusterId) < 0:	# ignore other logs/clusters
 			continue
 
 		tok = line.split(' ')
@@ -86,10 +92,13 @@ for line in f:
 		ts -= ts_init
 
 		if tok[2] == 'HealthStatEvent':
-			pass	# not used currently
+			if tok[4] == 's' and tok[3] in METRIC_NAMES:	# average event
+				metric = tok[3]
+				event_avgs[metric].append(float(tok[7]))
+				t_event_avgs[metric].append(ts)
 
 		elif tok[2] == 'HealthStatProc':
-			if tok[3] == 'la' or tok[3] == 'mc' or tok[3] == 'rif':
+			if tok[3] in METRIC_NAMES:
 				metric = tok[3]
 			
 				avg = float(tok[6])
@@ -128,7 +137,7 @@ for line in f:
 		break
 
 # write results to files
-for metric in ['la', 'rif', 'mc']:
+for metric in METRIC_NAMES:
 	out = open(metric, "w")
 
 	stats = actual[metric]
@@ -144,13 +153,19 @@ for metric in ['la', 'rif', 'mc']:
 	out.close()
 
 # plot separate graphs
-for metric in ['la', 'rif', 'mc']:
+for metric in METRIC_NAMES:
+
+	# health stats: actual and predicted
 	plt.figure()
+	plt.plot(np.array(t_event_avgs[metric]), np.array(event_avgs[metric]), label="actual")
+	plt.plot(np.array(t_pred[metric]), np.array(pred[metric]), label="predicted")
+	plt.title(metric)
+	plt.xlabel("time | " + str(TIMESCALE) + "s")
+	plt.ylabel("value")
+	plt.legend(loc="best")
 	
-	# actual and predicted
-	#plt.plot(np.array(t_actual[metric]), np.array(actual[metric]))
-	#plt.plot(np.array(t_pred[metric]), np.array(pred[metric]))
-	
+	# machine stats
+	plt.figure()
 	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue", label="allocation")
 	plt.plot(np.array(t_utilization[metric]), np.array(utilization[metric]), color="black", label="utilization")
 	
