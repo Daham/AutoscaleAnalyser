@@ -129,7 +129,7 @@ for line in f:
 
 # write results to files
 for metric in ['la', 'rif', 'mc']:
-	out = open(metric + ".log", "w")
+	out = open(metric, "w")
 
 	stats = actual[metric]
 	t_stats = t_actual[metric]
