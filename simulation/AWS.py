@@ -396,63 +396,68 @@ PROACTIVE_THRESHOLD = 1
 MIN_VM =2
 VM_PARAM_UNIT = 4
 
-#rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
+#rawdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REATIVE_THREASHOLDE, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], "../datasets/predicted_static/predicted.csv", "data/reactive_scale.csv", "data/normal_cost.csv")
 
-f0, (plt1,plt4) = plt.subplots(2,1,sharey=True)
-f1, (plt11,plt3 ) = plt.subplots(2,1,sharey=True)
-f_stratos, (plt_str_1, plt_str_2 ) = plt.subplots(2,1,sharey=True)
+f , ( (plt_str_1, plt_str_2),(plt1,plt4),(plt11,plt3)) = plt.subplots(3,2, sharey = True, sharex= True)
+#f00, (plt1) = plt.subplots(1,1,sharey=True)
+#f01, (plt4) = plt.subplots(1,1,sharey=True)
+#f11, (plt11) = plt.subplots(1,1,sharey=True)
+#f13, (plt3) = plt.subplots(1,1,sharey=True)
+#f_stratos0, (plt_str_1) = plt.subplots(1,1,sharey=True)
+#f_stratos1, (plt_str_2) = plt.subplots(1,1,sharey=True)
 f2, (func_plot) = plt.subplots(1,1)
 f3, (plt2) = plt.subplots(1,1)
 
 violation_x = array.array('d')
 violation_y = array.array('d')
 
-for n in drange(0, 100, 0.05):
+#plot cost function
+for n in drange(0, 100, 0.01):
     violation_x.append(n)
     violation_y.append(CostModel.SLA_func(n))
 
 func_plot.plot(violation_x, violation_y)
 
 #filename = "../datasets/predicted_static/predicted.csv"
-filename = "data2predicted.csv"
-filename2 = "data2actual.csv"
+filename = "aws_rubispredicted.csv"
+filename2 = "aws_rubisactual.csv"
 rowdata, predicted, digi_line,cost_line = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
 
-plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+#plt1.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
 plt1.plot(predicted.get_xdata(), predicted.get_ydata())  #EMA predicted
 plt1.plot(digi_line.get_xdata(), digi_line.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line.get_xdata(), cost_line.get_ydata())  #Reactive Blind Killing Cost
 
 rowdata_str_1, predicted_str_1, digi_line_str_1,cost_line_str_1 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "default","stratos", M3_MEDIUM_HOURLY_PRICE, [0,0], filename2, "data/reactive_scale.csv", "data/normal_cost.csv")
 
-plt_str_1.plot(rowdata_str_1.get_xdata(), rowdata_str_1.get_ydata(), "*") #rowdata
+#plt_str_1.plot(rowdata_str_1.get_xdata(), rowdata_str_1.get_ydata(), "*") #rowdata
 plt_str_1.plot(predicted_str_1.get_xdata(), predicted_str_1.get_ydata())  #Stratos predicted
 plt_str_1.plot(digi_line_str_1.get_xdata(), digi_line_str_1.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line_str_1.get_xdata(), cost_line_str_1.get_ydata())  #Stratos Blind Killing Cost
 
 rowdata_str_2, predicted_str_2, digi_line_str_2,cost_line_str_2 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "aws","stratos", M3_MEDIUM_HOURLY_PRICE, [0,0], filename2, "data/reactive_scale.csv", "data/normal_cost.csv")
 
-plt_str_2.plot(rowdata_str_2.get_xdata(), rowdata_str_2.get_ydata(), "*") #rowdata
+#plt_str_2.plot(rowdata_str_2.get_xdata(), rowdata_str_2.get_ydata(), "*") #rowdata
 plt_str_2.plot(predicted_str_2.get_xdata(), predicted_str_2.get_ydata())  #Stratos predicted
 plt_str_2.plot(digi_line_str_2.get_xdata(), digi_line_str_2.get_ydata())  #Reactive Blind Killing
 plt2.plot(cost_line_str_2.get_xdata(), cost_line_str_2.get_ydata())  #Stratos Smart Killing Cost
 
 rowdata11, predicted11, digi_line11,cost_line11 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "default","proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/reactive_scale.csv", "data/normal_cost.csv")
 
-plt11.plot(rowdata11.get_xdata(), rowdata11.get_ydata(), "*") #rowdata
+plt11.plot(rowdata11.get_xdata(), rowdata11.get_ydata()) #rowdata
 #plt11.plot(predicted11.get_xdata(), predicted11.get_ydata())  #EMA predicted
 plt11.plot(digi_line11.get_xdata(), digi_line11.get_ydata())  #Proactive Blind Killing
 plt2.plot(cost_line11.get_xdata(), cost_line11.get_ydata())  #Proactive Blind Killing Cost
 
 rowdata2, predicted2, digi_line2,cost_line2 = run(VM_PARAM_UNIT, PROACTIVE_THRESHOLD, 0, MIN_VM, 0, "aws", "proactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/proactive_scale.csv", "data/optimized_cost.csv")
 
-plt3.plot(rowdata.get_xdata(), rowdata.get_ydata(), "*") #rowdata
+plt3.plot(rowdata.get_xdata(), rowdata.get_ydata()) #rowdata
 plt3.plot(digi_line2.get_xdata(),digi_line2.get_ydata()) #Proactive Smart Killing
 plt2.plot(cost_line2.get_xdata(),cost_line2.get_ydata()) #Proactive Smart Killing cost
 
 rowdata3, predicted3, digi_line3,cost_line3 = run(VM_PARAM_UNIT, REACTIVE_THREASHOLD, 0, MIN_VM, 0, "aws", "reactive", M3_MEDIUM_HOURLY_PRICE, [0,0], filename, "data/proactive_scale.csv", "data/normal2_cost.csv")
 
-plt4.plot(rowdata3.get_xdata(), rowdata3.get_ydata(), "*") #rowdata
+#plt4.plot(rowdata3.get_xdata(), rowdata3.get_ydata(), "*") #rowdata
 plt4.plot(predicted3.get_xdata(), predicted3.get_ydata())  #EMA predicted
 plt4.plot(digi_line3.get_xdata(),digi_line3.get_ydata()) #Reactive Smart Killing
 plt2.plot(cost_line3.get_xdata(),cost_line3.get_ydata()) #Reactive Smart Killing Cost
@@ -461,7 +466,8 @@ tot_count = 0.0
 vio_count = 0.0
 total_costx = array.array('d')
 total_costy = array.array('d')
-for m in drange(min(rowdata.get_xdata()), max( rowdata.get_xdata())-1, 0.2):
+#violation cost
+for m in drange(min(rowdata.get_xdata()), max( rowdata.get_xdata())-1, 1):
 
     tot_count += 1
     row_value     = getValue(rowdata, m)
@@ -488,27 +494,27 @@ plt2.plot(total_costx,total_costy)
 
 plt1.set_xlabel("Time/minutes")
 plt1.set_ylabel("VM_Units")
-plt1.legend(["Raw Data", "Predicted", "Reactive-Blind Killing" ], loc='upper right')
+plt1.legend(["Smoothed-Row Data" , "Reactive-Blind Killing" ], loc='upper left', prop={'size':6})
 
 plt_str_1.set_xlabel("Time/minutes")
 plt_str_1.set_ylabel("VM_Units")
-plt_str_1.legend(["Raw Data", "Stratos-Predicted", "Stratos-Blind Killing" ], loc='upper right')
+plt_str_1.legend(["Stratos-Predicted", "Stratos-Blind Killing" ], loc='upper left' , prop={'size':6})
 
 plt_str_2.set_xlabel("Time/minutes")
 plt_str_2.set_ylabel("VM_Units")
-plt_str_2.legend(["Raw Data", "Stratos-Predicted", "Stratos-Smart Killing" ], loc='upper right')
+plt_str_2.legend(["Stratos-Predicted", "Stratos-Smart Killing" ], loc='upper left' ,prop={'size':6})
 
 plt11.set_xlabel("Time/minutes")
 plt11.set_ylabel("VM_Units")
-plt11.legend(["Raw Data", "Proactive-Blind Killing" ], loc='upper right')
+plt11.legend(["Raw Data", "Proactive-Blind Killing" ], loc='upper left', prop={'size':6})
 
 plt3.set_xlabel("Time/minutes")
 plt3.set_ylabel("VM_Units")
-plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='upper right')
+plt3.legend(["Raw Data", "Proactive -Smart Killing"], loc='upper left', prop={'size':6})
 
 plt4.set_xlabel("Time/minutes")
 plt4.set_ylabel("VM_Units")
-plt4.legend(["Raw Data", "Predicted" ,"Reactive -Smart Killing"], loc='upper right')
+plt4.legend(["Smoothed-Raw Data","Reactive -Smart Killing"], loc='upper left', prop={'size':6})
 
 func_plot.set_xlabel("Violated Precentage")
 func_plot.set_ylabel("Penalty Factor/ VM_Units")

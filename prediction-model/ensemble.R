@@ -201,9 +201,10 @@ generatePredictions = function() {
   horizon = 15
   
   start = 1
-  limit = 300
-  infile = "../datasets/companyx/cpu1_47h.log"
-  outdir = "../simulation/data2"
+  limit = 430
+  #infile = "../datasets/companyx/cpu1_47h.log"
+  infile = "../simulation/data/la107_108.csv"
+  outdir = "../simulation/aws_rubis"
   datafile = paste(outdir, "actual.csv", sep="")
   outfile = paste(outdir, "predicted.csv", sep="")
   
