@@ -176,7 +176,7 @@ prediction=function (tsdata, doView=TRUE, horizon=1) {
   
   if (doView) {
     ds=cbind(dseries,currentPredicted,arimaPredicted,nnetPredicted,ensemblePredicted,CurrentAE,ArimaAE,NNetAE,EnsembleAE,CurrentRE,ArimaRE,NNetRE,EnsembleRE)
-    #View(ds)
+    View(ds)
     pdf("plot.pdf")
 
     old.par <- par(mfrow=c(2,2 ))
@@ -201,14 +201,14 @@ generatePredictions = function() {
   horizon = 15
   
   start = 1
-  limit = 300
-  infile = "../datasets/companyx/cpu1_47h.log"
+  limit = 50
+  infile = "../performance-study/la"
   outdir = "../simulation/data2"
   datafile = paste(outdir, "actual.csv", sep="")
   outfile = paste(outdir, "predicted.csv", sep="")
   
   #file = commandArgs(TRUE)
-  data = read.csv(file=infile, header=FALSE)[start:(start+limit),]
+  data = read.csv(file=infile, header=FALSE)[start:(start+limit-1),]
   write.table(data, file=datafile, quote=FALSE, col.names=FALSE, sep=",")
   
   output = prediction(ts(data), TRUE, horizon)

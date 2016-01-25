@@ -49,7 +49,7 @@ FUTURE = 60/TIMESCALE	# prediction interval (s)
 
 # as percentages that can be handled by each machine
 HEALTH_SCALE_FACTOR = 100
-RIF_SCALE_FACTOR = 100		# TODO need a reasonable value!
+RIF_SCALE_FACTOR = 50		# absolute value
 
 SCALE_LOG_REL_PATH = "/repository/logs/scale.log"
 DEFAULT_CLUSTER_FILTER = "php"
@@ -172,7 +172,7 @@ for metric in METRIC_NAMES:
 	plt.legend(loc="best")
 	
 	# machine stats
-	plt.figure()
+	"""plt.figure()
 	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue", label="allocation")
 	plt.plot(np.array(t_utilization[metric]), np.array(utilization[metric]), color="black", label="utilization")
 	
@@ -188,8 +188,10 @@ for metric in METRIC_NAMES:
 		scaleLabeled = True
 
 	plt.title(metric)
-	plt.xlabel("time | " + str(TIMESCALE) + "s")
+	#plt.xlabel("time | " + str(TIMESCALE) + "s")
+	plt.xlabel("time | minutes")
+	plt.ylim(0, 8)
 	plt.ylabel("machine units")
-	plt.legend(loc="best")
+	plt.legend(loc="best")"""
 
 plt.show()
