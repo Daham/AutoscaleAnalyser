@@ -9,6 +9,24 @@ from matplotlib.lines import Line2D
 from itertools import izip
 
 
+t = 1
+ts_init = 0
+TIMESCALE = 60	# 60 => show in minutes
+FUTURE = 60/TIMESCALE	# prediction interval (s)
+
+# as percentages that can be handled by each machine
+HEALTH_SCALE_FACTOR = 100
+RIF_SCALE_FACTOR = 100		# absolute value
+
+SCALE_LOG_REL_PATH = "/repository/logs/scale.log"
+DEFAULT_CLUSTER_FILTER = "php"
+METRIC_NAMES = ['la', 'mc', 'rif']
+
+print "\nUsage:\tpython mock.py log_file_path cluster_filter"
+print "\tDefault log_file_path:\t$CARBON_HOME" + SCALE_LOG_REL_PATH
+print "\tDefault cluster_filter:\t*" + DEFAULT_CLUSTER_FILTER + "*\n"
+
+
 # --- based on health stat events
 event_avgs = {'la': [], 'rif': [], 'mc': []}
 t_event_avgs = {'la': [], 'rif': [], 'mc': []}
@@ -42,19 +60,6 @@ allocation = {'la': [], 'rif': [], 'mc': []}
 t_utilization = {'la': [], 'rif': [], 'mc': []}
 t_allocation = {'la': [], 'rif': [], 'mc': []}
 
-t = 1
-ts_init = 0
-TIMESCALE = 60	# 60 => show in minutes
-FUTURE = 60/TIMESCALE	# prediction interval (s)
-
-# as percentages that can be handled by each machine
-HEALTH_SCALE_FACTOR = 100
-RIF_SCALE_FACTOR = 50		# absolute value
-
-SCALE_LOG_REL_PATH = "/repository/logs/scale.log"
-DEFAULT_CLUSTER_FILTER = "php"
-METRIC_NAMES = ['la', 'mc', 'rif']
-
 # parse timestamp
 def getTS(timestr):
 	return time.mktime(time.strptime(timestr, '[%Y-%m-%d %H:%M:%S,%f]'))/TIMESCALE
@@ -63,17 +68,16 @@ def getTS(timestr):
 def recordInstances(ts, scaleList=None):
 	for metric in METRIC_NAMES:
 		allocation[metric].append(inst_count)
-		utilization[metric].append(s[metric]*inst_count/(RIF_SCALE_FACTOR if metric == 'rif' else HEALTH_SCALE_FACTOR))
+		if metric == 'rif':
+			utilization[metric].append(s[metric]/RIF_SCALE_FACTOR)
+		else:
+			utilization[metric].append(s[metric]*inst_count/HEALTH_SCALE_FACTOR)
 		t_allocation[metric].append(ts)
 		t_utilization[metric].append(ts)
 		if scaleList is not None and line.find(metric) > 0:
 			scaleCount = len(scaleList[metric])
 			# add timestamp, avoiding overlapping requests
 			scaleList[metric].append(ts + (0.3 if scaleCount > 0 and scaleList[metric][scaleCount - 1] == ts else 0))
-
-print "\nUsage:\tpython mock.py log_file_path cluster_filter"
-print "\tDefault log_file_path:\t$CARBON_HOME" + SCALE_LOG_REL_PATH
-print "\tDefault cluster_filter:\t*" + DEFAULT_CLUSTER_FILTER + "*\n"
 
 # fall back to default cluster ID if not provided
 clusterId = DEFAULT_CLUSTER_FILTER if len(sys.argv) < 3 else sys.argv[2]
@@ -116,8 +120,13 @@ for line in f:
 				if len(tok) > 9:
 					last_pred[metric] = float(tok[9])
 				else:
+					print "missing predicted value: " + str(ts)
 					last_pred[metric] = s[metric] + u[metric]*t + 0.5*a[metric]*t*t
-				pred[metric].append(last_pred[metric])
+
+				if metric == 'rif':
+					pred[metric].append(last_pred[metric]/RIF_SCALE_FACTOR)
+				else:
+					pred[metric].append(last_pred[metric]*inst_count/HEALTH_SCALE_FACTOR)
 				t_pred[metric].append(ts + FUTURE)
 
 				# latest entries, for next prediction
@@ -163,18 +172,23 @@ for metric in METRIC_NAMES:
 for metric in METRIC_NAMES:
 
 	# health stats: actual and predicted
+	"""
 	plt.figure()
 	plt.plot(np.array(t_event_avgs[metric]), np.array(event_avgs[metric]), label="actual")
 	plt.plot(np.array(t_event_pred[metric]), np.array(event_pred[metric]), label="predicted")
 	plt.title(metric)
 	plt.xlabel("time | " + str(TIMESCALE) + "s")
 	plt.ylabel("value")
-	plt.legend(loc="best")
+	plt.legend(loc="best")"""
 	
 	# machine stats
-	"""plt.figure()
-	plt.step(np.array(t_allocation[metric]), np.array(allocation[metric]), color="blue", label="allocation")
-	plt.plot(np.array(t_utilization[metric]), np.array(utilization[metric]), color="black", label="utilization")
+	plt.figure()
+	size = len(t_allocation[metric])
+	####
+	#plt.plot(np.array(t_pred[metric][1:size]), np.array(pred[metric][1:size]), color="purple", label="predicted")
+	####
+	plt.step(np.array(t_allocation[metric][1:size]), np.array(allocation[metric][1:size]), color="blue", label="allocation")
+	plt.plot(np.array(t_utilization[metric][1:size]), np.array(utilization[metric][1:size]), color="black", label="utilization")
 	
 	# scale up/down timestamps
 	scaleLabeled = False
@@ -192,6 +206,6 @@ for metric in METRIC_NAMES:
 	plt.xlabel("time | minutes")
 	plt.ylim(0, 8)
 	plt.ylabel("machine units")
-	plt.legend(loc="best")"""
+	plt.legend(loc="best")
 
 plt.show()
