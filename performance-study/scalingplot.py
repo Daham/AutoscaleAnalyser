@@ -123,10 +123,11 @@ for line in f:
 					print "missing predicted value: " + str(ts)
 					last_pred[metric] = s[metric] + u[metric]*t + 0.5*a[metric]*t*t
 
-				if metric == 'rif':
+				pred[metric].append(last_pred[metric])
+				"""if metric == 'rif':
 					pred[metric].append(last_pred[metric]/RIF_SCALE_FACTOR)
 				else:
-					pred[metric].append(last_pred[metric]*inst_count/HEALTH_SCALE_FACTOR)
+					pred[metric].append(last_pred[metric]*inst_count/HEALTH_SCALE_FACTOR)"""
 				t_pred[metric].append(ts + FUTURE)
 
 				# latest entries, for next prediction
@@ -169,47 +170,42 @@ for metric in METRIC_NAMES:
 	out.close()
 
 # plot separate graphs
-func, (plt1, plt2, plt3) = plt.subplots(1, 3, sharex=True, sharey=True)
-plots = {'la': plt1, 'mc': plt2, 'rif': plt3}
-
 for metric in METRIC_NAMES:
-	plot = plots[metric]
+	fig, (plt1, plt2) = plt.subplots(1, 2, sharex=True)
+	plt.suptitle(metric, size=18)
+	
+	# change this to switch to a different no. of plot points
+	size = len(t_allocation[metric])
 
 	# health stats: actual and predicted
-	"""
-	plt.figure()
-	plt.plot(np.array(t_event_avgs[metric]), np.array(event_avgs[metric]), label="actual")
-	plt.plot(np.array(t_event_pred[metric]), np.array(event_pred[metric]), label="predicted")
-	plt.title(metric)
-	plt.xlabel("time | " + str(TIMESCALE) + "s")
-	plt.ylabel("value")
-	plt.legend(loc="best")"""
+	#plt.figure()
+	plt1.plot(np.array(t_event_avgs[metric][1:size]), np.array(event_avgs[metric][1:size]), label="actual")
+	plt1.plot(np.array(t_pred[metric][1:size]), np.array(pred[metric][1:size]), label="Stratos")
+	plt1.plot(np.array(t_event_pred[metric][1:size]), np.array(event_pred[metric][1:size]), label="inteliScaler")
+	plt1.set_xlabel("time | minutes")
+	plt1.set_ylabel("value")
+	plt1.legend(loc="best")
 	
 	# machine stats
-	#plt.figure()
-	size = len(t_allocation[metric])
-	####
-	#plt.plot(np.array(t_pred[metric][1:size]), np.array(pred[metric][1:size]), color="purple", label="predicted")
-	####
-	plot.step(np.array(t_allocation[metric][1:size]), np.array(allocation[metric][1:size]), color="blue", label="allocation")
-	plot.plot(np.array(t_utilization[metric][1:size]), np.array(utilization[metric][1:size]), color="black", label="utilization")
+	plt2.step(np.array(t_allocation[metric][1:size]), np.array(allocation[metric][1:size]), color="blue", label="allocation")
+	plt2.plot(np.array(t_utilization[metric][1:size]), np.array(utilization[metric][1:size]), color="black", label="utilization")
 	
 	# scale up/down timestamps
 	scaleLabeled = False
 	for t in t_scaleups[metric]:
-		plot.axvline(t, ls=":", color="red", label=None if scaleLabeled else "scale up")
+		plt2.axvline(t, ls=":", color="red", label=None if scaleLabeled else "scale up")
 		scaleLabeled = True	# add label only to first line
 
 	scaleLabeled = False
 	for t in t_scaledowns[metric]:
-		plot.axvline(t, ls=":", color="green", label=None if scaleLabeled else "scale down")
+		plt2.axvline(t, ls=":", color="green", label=None if scaleLabeled else "scale down")
 		scaleLabeled = True
 
 	#plt.title(metric)
 	#plt.xlabel("time | " + str(TIMESCALE) + "s")
-	plot.set_xlabel("time | minutes")
-	plot.set_ylim(0, 8)
-	plot.set_ylabel("machine units")
-	plot.legend(loc="best")
+	plt2.set_xlabel("time | minutes")
+	#plt.set_ylim(0, 8)
+	plt2.set_ylabel("machine units")
+	plt2.legend(loc="best")
 
 plt.show()
